@@ -1,0 +1,7 @@
+2026-09-17T00:36:25.559469	DEBUG	server/main.go:63	application time zone	{"zone": "Europe/Moscow"}
+2026-09-17T00:36:25.559508	DEBUG	server/main.go:66	initializing postgres connection pool
+2026-09-17T00:36:25.566883	DEBUG	server/main.go:74	initializing redis client
+2026-09-17T00:36:25.569279	DEBUG	server/main.go:151	initializing http server
+2026-09-17T00:36:25.569308	WARN	server/server.go:44	start HTTP server	{"addr": ":8080"}
+2026-09-17T00:36:25.569375	ERROR	server/main.go:169	HTTP server run error	{"error": "listern and server HTTP: listen tcp :8080: bind: address already in use"}
+2026-09-17T00:36:25.569386	DEBUG	server/main.go:172	shutdown complete

@@ -1,0 +1,12 @@
+2026-09-17T00:43:38.245053	DEBUG	server/main.go:63	application time zone	{"zone": "Europe/Moscow"}
+2026-09-17T00:43:38.245247	DEBUG	server/main.go:66	initializing postgres connection pool
+2026-09-17T00:43:38.253849	DEBUG	server/main.go:74	initializing redis client
+2026-09-17T00:43:38.257424	DEBUG	server/main.go:151	initializing http server
+2026-09-17T00:43:38.257664	WARN	server/server.go:44	start HTTP server	{"addr": ":8080"}
+2026-09-17T00:43:43.041092	DEBUG	middleware/common.go:78	>>> incoming HTTP request	{"request_id": "517f2f43-4da3-4d57-8e3a-78737879a8ee", "url": "/api/v1/auth/register", "http_method": "POST", "time": "2026-09-16T21:43:43.041091"}
+2026-09-17T00:43:43.111274	DEBUG	middleware/common.go:86	<<< done HTTP request	{"request_id": "517f2f43-4da3-4d57-8e3a-78737879a8ee", "url": "/api/v1/auth/register", "HTTP Response status code": 201, "latency": "70.182708ms"}
+2026-09-17T00:43:43.169667	WARN	server/server.go:58	shutdown HTTP server
+2026-09-17T00:43:43.169754	DEBUG	service/cleanup.go:18	jwt cleanup worker stopped
+2026-09-17T00:43:43.169794	WARN	server/server.go:72	HTTP server stopped
+2026-09-17T00:43:43.169806	DEBUG	server/main.go:172	shutdown complete
+2026-09-17T00:43:43.169794	DEBUG	service/reminders.go:148	reminders worker stopped

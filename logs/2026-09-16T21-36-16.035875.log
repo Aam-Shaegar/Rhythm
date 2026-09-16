@@ -1,0 +1,7 @@
+2026-09-17T00:36:16.036093	DEBUG	server/main.go:63	application time zone	{"zone": "Europe/Moscow"}
+2026-09-17T00:36:16.036290	DEBUG	server/main.go:66	initializing postgres connection pool
+2026-09-17T00:36:16.044141	DEBUG	server/main.go:74	initializing redis client
+2026-09-17T00:36:16.047074	DEBUG	server/main.go:151	initializing http server
+2026-09-17T00:36:16.047273	WARN	server/server.go:44	start HTTP server	{"addr": ":8080"}
+2026-09-17T00:36:20.422296	DEBUG	middleware/common.go:78	>>> incoming HTTP request	{"request_id": "fcf83d6f-7770-49a8-acc5-9ca377a8951b", "url": "/api/v1/auth/register", "http_method": "POST", "time": "2026-09-16T21:36:20.422295"}
+2026-09-17T00:36:20.493356	DEBUG	middleware/common.go:86	<<< done HTTP request	{"request_id": "fcf83d6f-7770-49a8-acc5-9ca377a8951b", "url": "/api/v1/auth/register", "HTTP Response status code": 201, "latency": "71.0565ms"}

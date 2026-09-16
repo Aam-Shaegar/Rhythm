@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ритм — прототип интерфейса</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --page-bg-1:#1c1c20;
+    --page-bg-2:#232227;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;}
+  body{
+    font-family:'Manrope',sans-serif;
+    background:radial-gradient(circle at 30% 10%, var(--page-bg-2), var(--page-bg-1) 70%);
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    padding:48px 20px;
+    color:#e9e7e2;
+  }
+  .page-label{
+    font-size:13px;
+    letter-spacing:.2px;
+    color:#8f8d92;
+    margin-bottom:22px;
+    text-align:center;
+    max-width:380px;
+    line-height:1.5;
+  }
+  .page-label b{color:#cfcdd2;font-weight:600;}
+
+  /* ===== PHONE FRAME ===== */
+  .phone{
+    position:relative;
+    width:388px;
+    height:812px;
+    border-radius:46px;
+    padding:12px;
+    background:linear-gradient(160deg,#3a3a3f,#111113);
+    box-shadow:0 40px 80px -20px rgba(0,0,0,.65), 0 0 0 1px rgba(255,255,255,.04) inset;
+  }
+  .phone-screen{
+    position:relative;
+    width:100%;
+    height:100%;
+    border-radius:36px;
+    overflow:hidden;
+    isolation:isolate;
+    transition:background .5s ease;
+  }
+
+  /* THEME TOKENS (per theme, applied via data-theme on .phone-screen) */
+  .phone-screen[data-theme="forest"]{
+    --accent:#6f9271; --accent-deep:#3d5a41; --accent-soft:#c7dcc4;
+    --surface:rgba(255,255,255,.52); --surface-strong:rgba(255,255,255,.72);
+    --text:#33402f; --text-soft:#5b6a53;
+    --bg-a:#e7f0e1; --bg-b:#bcd2ba;
+  }
+  .phone-screen[data-theme="coffee"]{
+    --accent:#a97c50; --accent-deep:#6b4226; --accent-soft:#e6cfae;
+    --surface:rgba(255,252,247,.55); --surface-strong:rgba(255,252,247,.76);
+    --text:#3c2c1e; --text-soft:#6b5541;
+    --bg-a:#f3e3cd; --bg-b:#d8b48f;
+  }
+  .phone-screen[data-theme="lavender"]{
+    --accent:#a884b0; --accent-deep:#6f4f79; --accent-soft:#e9d6ec;
+    --surface:rgba(255,255,255,.55); --surface-strong:rgba(255,255,255,.76);
+    --text:#3d2f42; --text-soft:#6c5c72;
+    --bg-a:#f6e3ee; --bg-b:#d3bfe6;
+  }
+  .phone-screen[data-theme="custom"]{
+    --accent:#8a8f6e; --accent-deep:#565b3f; --accent-soft:#dfe2c9;
+    --surface:rgba(255,255,255,.55); --surface-strong:rgba(255,255,255,.78);
+    --text:#33321f; --text-soft:#5e5c44;
+    --bg-a:#e9e6d4; --bg-b:#c8caa8;
+  }
+
+  .bg-layer{
+    position:absolute; inset:0; z-index:0;
+    background:linear-gradient(180deg,var(--bg-a),var(--bg-b));
+  }
+  .bg-illustration{position:absolute; inset:0; z-index:0;}
+  .bg-custom-photo{
+    position:absolute; inset:0; z-index:0; background-size:cover; background-position:center;
+    display:none;
+  }
+  .bg-custom-overlay{
+    position:absolute; inset:0; z-index:0;
+    background:linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,.42));
+    display:none;
+  }
+  [data-theme="custom"].has-photo .bg-custom-photo,
+  [data-theme="custom"].has-photo .bg-custom-overlay{display:block;}
+  [data-theme="custom"].has-photo .bg-layer,
+  [data-theme="custom"].has-photo .bg-illustration{display:none;}
+  [data-theme="custom"].has-photo{ --text:#f3f1ea; --text-soft:#e3e0d6; --surface:rgba(20,20,18,.42); --surface-strong:rgba(20,20,18,.6); }
+
+  /* status bar */
+  .status-bar{
+    position:relative; z-index:2;
+    display:flex; justify-content:space-between; align-items:center;
+    padding:16px 26px 4px;
+    font-size:14px; font-weight:600; color:var(--text);
+  }
+
+  /* screens container */
+  .screens{ position:relative; z-index:2; height:calc(100% - 34px); }
+  .screen{ display:none; height:100%; flex-direction:column; }
+  .screen.active{ display:flex; }
+  .screen-head{
+    padding:6px 22px 14px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .screen-title{ font-size:23px; font-weight:800; color:var(--text); }
+  .screen-body{ flex:1; overflow-y:auto; padding:0 22px 100px; }
+  .screen-body::-webkit-scrollbar{display:none;}
+
+  /* pill toggle (day/week, and theme segments) */
+  .pill-toggle{
+    display:inline-flex; background:var(--surface); border-radius:999px; padding:3px;
+    backdrop-filter:blur(10px);
+  }
+  .pill-toggle button{
+    border:none; background:transparent; font-family:inherit; font-size:12.5px; font-weight:700;
+    padding:6px 13px; border-radius:999px; color:var(--text-soft); cursor:pointer; transition:all .25s ease;
+  }
+  .pill-toggle button.active{ background:var(--accent-deep); color:#fff; }
+
+  /* zoom control */
+  .zoom-row{ display:flex; align-items:center; gap:10px; padding:0 22px 12px; }
+  .zoom-row span{ font-size:11.5px; color:var(--text-soft); font-weight:600; }
+  input[type="range"].zoom{
+    -webkit-appearance:none; flex:1; height:4px; border-radius:2px;
+    background:var(--surface-strong); outline:none;
+  }
+  input[type="range"].zoom::-webkit-slider-thumb{
+    -webkit-appearance:none; width:16px; height:16px; border-radius:50%;
+    background:var(--accent-deep); cursor:pointer; box-shadow:0 1px 4px rgba(0,0,0,.3);
+  }
+
+  /* date strip */
+  .date-strip{ display:flex; gap:8px; padding:0 22px 14px; overflow-x:auto; }
+  .date-chip{
+    min-width:44px; padding:8px 0; border-radius:14px; text-align:center;
+    background:var(--surface); color:var(--text); cursor:pointer; transition:.2s;
+  }
+  .date-chip .d{ font-size:10.5px; font-weight:700; opacity:.65; display:block; }
+  .date-chip .n{ font-size:15px; font-weight:800; display:block; margin-top:2px; }
+  .date-chip.active{ background:var(--accent-deep); color:#fff; }
+
+  /* calendar grid */
+  .cal-wrap{ display:flex; padding:0 14px 0 22px; }
+  .hour-col{ position:relative; width:42px; flex-shrink:0; }
+  .hour-label{
+    position:absolute; left:0; transform:translateY(-50%);
+    font-size:10px; font-weight:700; color:var(--text-soft); opacity:.7;
+  }
+  .grid-body{
+    position:relative; flex:1;
+    height:calc(var(--hour-height, 56px) * 16);
+    background-image:repeating-linear-gradient(to bottom, rgba(0,0,0,.09) 0, rgba(0,0,0,.09) 1px, transparent 1px, transparent var(--hour-height, 56px));
+    border-radius:14px;
+    margin-left:6px;
+  }
+  .week-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+  .week-col{ position:relative; height:calc(var(--hour-height,56px) * 16);
+    background-image:repeating-linear-gradient(to bottom, rgba(0,0,0,.08) 0, rgba(0,0,0,.08) 1px, transparent 1px, transparent var(--hour-height,56px));
+    border-radius:10px;
+  }
+  .week-heads{ display:grid; grid-template-columns:repeat(7,1fr); gap:4px; margin:0 0 6px 48px; }
+  .week-heads span{ text-align:center; font-size:10.5px; font-weight:700; color:var(--text-soft); }
+
+  .event{
+    position:absolute; left:5px; right:5px; border-radius:9px;
+    padding:5px 8px; font-size:10.5px; font-weight:700; color:var(--accent-deep);
+    background:var(--surface-strong); border-left:3px solid var(--accent-deep);
+    overflow:hidden;
+  }
+  .event span{ display:block; font-weight:500; font-size:9px; opacity:.75; margin-top:1px;}
+  .week-col .event{ font-size:9px; padding:4px 5px; }
+
+  .now-line{ position:absolute; left:0; right:0; height:2px; background:#d1495b; z-index:3; }
+  .now-line::before{
+    content:''; position:absolute; left:-4px; top:-3px; width:8px; height:8px; border-radius:50%; background:#d1495b;
+  }
+
+  /* tasks */
+  .task-card{
+    display:flex; align-items:flex-start; gap:12px; background:var(--surface);
+    border-radius:16px; padding:13px 14px; margin-bottom:10px; backdrop-filter:blur(8px);
+  }
+  .check{
+    width:22px; height:22px; border-radius:50%; border:2px solid var(--accent-deep); flex-shrink:0;
+    margin-top:1px; cursor:pointer; position:relative; transition:.2s;
+  }
+  .check::after{
+    content:''; position:absolute; inset:0; border-radius:50%; background:var(--accent-deep);
+    transform:scale(0); transition:.2s;
+  }
+  .task-card.done .check::after{ transform:scale(1); }
+  .task-main{ flex:1; }
+  .task-title{ font-size:14.5px; font-weight:700; color:var(--text); }
+  .task-card.done .task-title{ text-decoration:line-through; opacity:.5; }
+  .task-meta{ font-size:11.5px; color:var(--text-soft); margin-top:3px; display:flex; gap:8px; }
+  .fab{
+    position:absolute; right:22px; bottom:96px; width:52px; height:52px; border-radius:50%;
+    background:var(--accent-deep); color:#fff; font-size:26px; display:flex; align-items:center;
+    justify-content:center; box-shadow:0 10px 20px -6px rgba(0,0,0,.4); cursor:pointer; z-index:5;
+  }
+
+  /* reports */
+  .donut-wrap{ display:flex; flex-direction:column; align-items:center; padding:14px 0 22px; }
+  .donut{
+    width:158px; height:158px; border-radius:50%;
+    background:conic-gradient(var(--accent-deep) 0% 72%, var(--surface-strong) 72% 100%);
+    display:flex; align-items:center; justify-content:center; position:relative;
+  }
+  .donut::before{
+    content:''; position:absolute; width:112px; height:112px; border-radius:50%; background:var(--bg-a);
+  }
+  .donut-num{ position:relative; font-size:28px; font-weight:800; color:var(--text); }
+  .stat-row{ display:flex; gap:10px; margin-top:18px; width:100%; }
+  .stat-card{ flex:1; background:var(--surface); border-radius:14px; padding:12px; text-align:center; }
+  .stat-card .n{ font-size:19px; font-weight:800; color:var(--accent-deep); }
+  .stat-card .l{ font-size:10.5px; color:var(--text-soft); font-weight:600; margin-top:2px; }
+
+  /* settings */
+  .settings-section{ margin-bottom:20px; }
+  .settings-label{ font-size:11.5px; font-weight:700; color:var(--text-soft); margin-bottom:8px; text-transform:uppercase; letter-spacing:.3px; opacity:.7;}
+  .profile-row{ display:flex; align-items:center; gap:12px; background:var(--surface); border-radius:16px; padding:14px; }
+  .avatar{ width:46px; height:46px; border-radius:50%; background:var(--accent-deep); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; }
+  .profile-row .name{ font-weight:700; color:var(--text); font-size:14.5px; }
+  .profile-row .mail{ font-size:11.5px; color:var(--text-soft); }
+
+  .theme-gallery{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+  .theme-card{
+    border-radius:16px; padding:10px; cursor:pointer; border:2px solid transparent;
+    background:var(--surface); transition:.2s;
+  }
+  .theme-card.selected{ border-color:var(--accent-deep); }
+  .theme-swatch{ height:52px; border-radius:11px; margin-bottom:8px; position:relative; overflow:hidden;}
+  .theme-swatch.tf{ background:linear-gradient(180deg,#e7f0e1,#bcd2ba);}
+  .theme-swatch.tc{ background:linear-gradient(180deg,#f3e3cd,#d8b48f);}
+  .theme-swatch.tl{ background:linear-gradient(180deg,#f6e3ee,#d3bfe6);}
+  .theme-swatch.tu{ background:linear-gradient(135deg,#dfe2c9,#c8caa8); display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; color:#565b3f;}
+  .theme-name{ font-size:12px; font-weight:700; color:var(--text); }
+
+  .custom-controls{ margin-top:10px; display:none; gap:8px; }
+  .custom-controls.show{ display:flex; }
+  .custom-controls label{
+    flex:1; display:flex; align-items:center; justify-content:center; gap:6px;
+    background:var(--surface-strong); border-radius:12px; padding:9px; font-size:11.5px; font-weight:700;
+    color:var(--text); cursor:pointer;
+  }
+  input[type="color"]{ width:26px; height:26px; border:none; border-radius:50%; overflow:hidden; padding:0; background:none; cursor:pointer;}
+  input[type="file"]{ display:none; }
+
+  .switch-row{ display:flex; align-items:center; justify-content:space-between; background:var(--surface); border-radius:14px; padding:12px 14px; margin-bottom:8px; }
+  .switch-row .t{ font-size:13.5px; font-weight:600; color:var(--text); }
+  .toggle{ width:40px; height:24px; border-radius:999px; background:var(--surface-strong); position:relative; cursor:pointer; }
+  .toggle::after{ content:''; position:absolute; top:3px; left:3px; width:18px; height:18px; border-radius:50%; background:#fff; transition:.2s; box-shadow:0 1px 3px rgba(0,0,0,.3);}
+  .toggle.on{ background:var(--accent-deep); }
+  .toggle.on::after{ left:19px; }
+
+  .logout-btn{
+    width:100%; padding:13px; border-radius:14px; background:var(--surface); color:var(--text);
+    font-family:inherit; font-weight:700; font-size:13.5px; border:none; cursor:pointer; margin-top:6px;
+  }
+
+  /* bottom switcher */
+  .switcher-wrap{ position:absolute; left:0; right:0; bottom:22px; z-index:6; display:flex; justify-content:center; }
+  .switcher{
+    position:relative; display:flex; gap:4px; background:var(--surface-strong);
+    backdrop-filter:blur(16px); border-radius:999px; padding:6px; box-shadow:0 12px 28px -10px rgba(0,0,0,.35);
+  }
+  .switcher .highlight{
+    position:absolute; top:6px; left:6px; width:52px; height:44px; border-radius:999px;
+    background:var(--accent-deep); transition:transform .38s cubic-bezier(.34,1.4,.4,1); z-index:0;
+  }
+  .switcher button{
+    position:relative; z-index:1; width:52px; height:44px; border:none; background:transparent;
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  .switcher svg{ width:21px; height:21px; stroke:var(--text-deep, var(--text)); opacity:.55; transition:.3s; }
+  .switcher button.active svg{ opacity:1; stroke:#fff; }
+</style>
+</head>
+<body>
+
+<div class="page-label">Кликабельный прототип «Ритм» — переключай вкладки внизу, потяни ползунок масштаба на календаре, попробуй сменить тему в <b>Настройках</b>.</div>
+
+<div class="phone">
+  <div class="phone-screen" data-theme="forest" id="phoneScreen">
+
+    <div class="bg-layer"></div>
+    <svg class="bg-illustration" id="bgIllustration" viewBox="0 0 388 812" preserveAspectRatio="none"></svg>
+    <div class="bg-custom-photo" id="customPhoto"></div>
+    <div class="bg-custom-overlay"></div>
+
+    <div class="status-bar"><span>9:41</span><span>Ритм</span></div>
+
+    <div class="screens">
+
+      <!-- CALENDAR -->
+      <div class="screen active" data-screen="calendar">
+        <div class="screen-head">
+          <div class="screen-title">Расписание</div>
+          <div class="pill-toggle" id="dayWeekToggle">
+            <button class="active" data-view="day">День</button>
+            <button data-view="week">Неделя</button>
+          </div>
+        </div>
+
+        <div class="date-strip" id="dateStrip"></div>
+
+        <div class="zoom-row">
+          <span>−</span>
+          <input type="range" class="zoom" id="zoomSlider" min="0" max="2" step="1" value="1">
+          <span>+</span>
+        </div>
+
+        <div class="screen-body" style="padding-bottom:120px;">
+          <div id="dayView" class="cal-wrap">
+            <div class="hour-col" id="hourLabelsDay"></div>
+            <div class="grid-body" id="dayGridBody"></div>
+          </div>
+          <div id="weekView" class="cal-wrap" style="display:none;">
+            <div class="hour-col" id="hourLabelsWeek"></div>
+            <div style="flex:1;">
+              <div class="week-heads"><span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span></div>
+              <div class="week-grid" id="weekGrid"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TASKS -->
+      <div class="screen" data-screen="tasks">
+        <div class="screen-head"><div class="screen-title">Задачи</div></div>
+        <div class="screen-body">
+          <div class="task-card">
+            <div class="check" onclick="this.parentElement.classList.toggle('done')"></div>
+            <div class="task-main">
+              <div class="task-title">Доделать миграции БД</div>
+              <div class="task-meta"><span>Сегодня, 18:00</span></div>
+            </div>
+          </div>
+          <div class="task-card done">
+            <div class="check" onclick="this.parentElement.classList.toggle('done')"></div>
+            <div class="task-main">
+              <div class="task-title">Прочитать главу по СУБД</div>
+              <div class="task-meta"><span>Сегодня, 12:00</span></div>
+            </div>
+          </div>
+          <div class="task-card">
+            <div class="check" onclick="this.parentElement.classList.toggle('done')"></div>
+            <div class="task-main">
+              <div class="task-title">Оплатить интернет</div>
+              <div class="task-meta"><span>Завтра · повтор ежемесячно</span></div>
+            </div>
+          </div>
+          <div class="task-card">
+            <div class="check" onclick="this.parentElement.classList.toggle('done')"></div>
+            <div class="task-main">
+              <div class="task-title">Зарядка</div>
+              <div class="task-meta"><span>Ежедневно, 8:00</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="fab">+</div>
+      </div>
+
+      <!-- REPORTS -->
+      <div class="screen" data-screen="reports">
+        <div class="screen-head"><div class="screen-title">Отчёты</div></div>
+        <div class="screen-body">
+          <div class="donut-wrap">
+            <div class="donut"><div class="donut-num">72%</div></div>
+          </div>
+          <div class="stat-row">
+            <div class="stat-card"><div class="n">8</div><div class="l">Выполнено</div></div>
+            <div class="stat-card"><div class="n">3</div><div class="l">Не выполнено</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div class="screen" data-screen="settings">
+        <div class="screen-head"><div class="screen-title">Настройки</div></div>
+        <div class="screen-body">
+
+          <div class="settings-section">
+            <div class="profile-row">
+              <div class="avatar">ДС</div>
+              <div><div class="name">Дмитрий Соловьёв</div><div class="mail">dmitry@rhytm.app</div></div>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <div class="settings-label">Тема оформления</div>
+            <div class="theme-gallery">
+              <div class="theme-card selected" data-theme-pick="forest">
+                <div class="theme-swatch tf"></div><div class="theme-name">Лес</div>
+              </div>
+              <div class="theme-card" data-theme-pick="coffee">
+                <div class="theme-swatch tc"></div><div class="theme-name">Кофе</div>
+              </div>
+              <div class="theme-card" data-theme-pick="lavender">
+                <div class="theme-swatch tl"></div><div class="theme-name">Лаванда</div>
+              </div>
+              <div class="theme-card" data-theme-pick="custom">
+                <div class="theme-swatch tu">своя</div><div class="theme-name">Своя тема</div>
+              </div>
+            </div>
+            <div class="custom-controls" id="customControls">
+              <label>🎨 Цвет<input type="color" id="customColor" value="#8a8f6e"></label>
+              <label>🖼 Фото<input type="file" id="customPhotoInput" accept="image/*"></label>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <div class="settings-label">Уведомления</div>
+            <div class="switch-row"><span class="t">Напоминания о событиях</span><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+            <div class="switch-row"><span class="t">Напоминания о задачах</span><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+          </div>
+
+          <button class="logout-btn">Выйти из аккаунта</button>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="switcher-wrap">
+      <div class="switcher" id="switcher">
+        <div class="highlight" id="switchHighlight"></div>
+        <button class="active" data-target="calendar" title="Расписание">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg>
+        </button>
+        <button data-target="tasks" title="Задачи">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h10"/><path d="M4 7l1.5 1.5L8 6" stroke-width="0"/></svg>
+        </button>
+        <button data-target="reports" title="Отчёты">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="6"/><line x1="18" y1="20" x2="18" y2="15"/></svg>
+        </button>
+        <button data-target="settings" title="Настройки">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><circle cx="9" cy="7" r="2.3" fill="currentColor" stroke="none"/><line x1="4" y1="14" x2="20" y2="14"/><circle cx="16" cy="14" r="2.3" fill="currentColor" stroke="none"/><line x1="4" y1="19" x2="20" y2="19"/><circle cx="11" cy="19" r="2.3" fill="currentColor" stroke="none"/></svg>
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const phoneScreen = document.getElementById('phoneScreen');
+const HOURS_START = 7, HOURS_END = 22, ROWS = HOURS_END - HOURS_START + 1;
+
+/* ---------- background illustrations (per theme) ---------- */
+function paintIllustration(theme){
+  const svg = document.getElementById('bgIllustration');
+  if(theme === 'forest'){
+    svg.innerHTML = `
+      <ellipse cx="194" cy="812" rx="320" ry="140" fill="#a9c4a5" opacity="0.5"/>
+      <path d="M40 560 L75 470 L110 560 Z" fill="#7fa17d" opacity=".55"/>
+      <path d="M85 590 L130 460 L175 590 Z" fill="#6f9271" opacity=".6"/>
+      <path d="M150 610 L205 440 L260 610 Z" fill="#597b58" opacity=".55"/>
+      <path d="M230 600 L280 480 L330 600 Z" fill="#7fa17d" opacity=".55"/>
+      <path d="M300 630 L345 500 L388 630 Z" fill="#6f9271" opacity=".5"/>
+      <rect x="70" y="560" width="10" height="35" fill="#6b5a44" opacity=".5"/>
+      <rect x="195" y="590" width="12" height="40" fill="#6b5a44" opacity=".45"/>
+      <ellipse cx="194" cy="90" rx="260" ry="90" fill="#f5f9f1" opacity=".35"/>
+    `;
+  } else if(theme === 'coffee'){
+    svg.innerHTML = `
+      <g opacity=".18">
+        ${Array.from({length:14}).map((_,i)=>`<line x1="0" y1="${i*58+10}" x2="388" y2="${i*58+2}" stroke="#6b4226" stroke-width="1"/>`).join('')}
+      </g>
+      <circle cx="300" cy="150" r="120" fill="none" stroke="#6b4226" stroke-width="14" opacity=".18"/>
+      <circle cx="90" cy="640" r="150" fill="none" stroke="#6b4226" stroke-width="20" opacity=".14"/>
+      <path d="M150 720 h90 a45 45 0 0 1 -90 0 Z" fill="#6b4226" opacity=".28"/>
+      <path d="M240 730 q18 -10 0 -20" fill="none" stroke="#6b4226" stroke-width="5" opacity=".3" stroke-linecap="round"/>
+      <path d="M118 690 q6 -22 -8 -34" fill="none" stroke="#a97c50" stroke-width="4" opacity=".4" stroke-linecap="round"/>
+      <path d="M138 690 q6 -26 -6 -40" fill="none" stroke="#a97c50" stroke-width="4" opacity=".4" stroke-linecap="round"/>
+    `;
+  } else if(theme === 'lavender'){
+    svg.innerHTML = `
+      <circle cx="320" cy="110" r="46" fill="#f4e6f0" opacity=".6"/>
+      <ellipse cx="70" cy="200" rx="90" ry="30" fill="#fff" opacity=".35"/>
+      <ellipse cx="260" cy="260" rx="110" ry="34" fill="#fff" opacity=".3"/>
+      <ellipse cx="120" cy="700" rx="220" ry="120" fill="#c9a8d6" opacity=".3"/>
+      <ellipse cx="330" cy="640" rx="150" ry="90" fill="#e6c9de" opacity=".35"/>
+    `;
+  } else {
+    svg.innerHTML = '';
+  }
+}
+paintIllustration('forest');
+
+/* ---------- calendar hour labels / grid lines ---------- */
+function hourHeightPx(){
+  return getComputedStyle(phoneScreen).getPropertyValue('--hour-height').trim() || '56px';
+}
+function buildHourLabels(container){
+  container.innerHTML = '';
+  for(let i=0;i<ROWS;i++){
+    const l = document.createElement('div');
+    l.className = 'hour-label';
+    l.style.top = `calc(var(--hour-height,56px) * ${i})`;
+    l.textContent = (HOURS_START+i) + ':00';
+    container.appendChild(l);
+  }
+}
+buildHourLabels(document.getElementById('hourLabelsDay'));
+buildHourLabels(document.getElementById('hourLabelsWeek'));
+
+/* day events: {start,end,title,meta} as hour-decimal from HOURS_START */
+const dayEvents = [
+  {start:9, end:10.5, title:'Матан, лекция', meta:'ауд. 312'},
+  {start:13, end:14, title:'Обед', meta:''},
+  {start:18.5, end:19.5, title:'Тренировка', meta:'зал'},
+  {start:20, end:22, title:'Ритм: бэкенд', meta:'учебный проект'}
+];
+function renderDayEvents(){
+  const body = document.getElementById('dayGridBody');
+  body.innerHTML = '';
+  dayEvents.forEach(ev=>{
+    const d = document.createElement('div');
+    d.className='event';
+    d.style.top = `calc(var(--hour-height,56px) * ${ev.start-HOURS_START})`;
+    d.style.height = `calc(var(--hour-height,56px) * ${ev.end-ev.start})`;
+    d.innerHTML = ev.title + (ev.meta?`<span>${ev.meta}</span>`:'');
+    body.appendChild(d);
+  });
+  const now = document.createElement('div');
+  now.className='now-line';
+  now.style.top = `calc(var(--hour-height,56px) * ${15.67-HOURS_START})`;
+  body.appendChild(now);
+}
+renderDayEvents();
+
+/* week events: {day:0-6, start,end,title} */
+const weekEvents = [
+  {day:0,start:9,end:10.5,title:'Матан'},
+  {day:1,start:11,end:12,title:'Англ.яз'},
+  {day:2,start:20,end:22,title:'Ритм'},
+  {day:2,start:9,end:10.5,title:'Матан'},
+  {day:3,start:15,end:16,title:'Встреча'},
+  {day:4,start:18.5,end:19.5,title:'Тренировка'},
+  {day:5,start:12,end:13.5,title:'Прогулка'}
+];
+function renderWeekGrid(){
+  const grid = document.getElementById('weekGrid');
+  grid.innerHTML = '';
+  for(let d=0; d<7; d++){
+    const col = document.createElement('div');
+    col.className='week-col';
+    weekEvents.filter(e=>e.day===d).forEach(ev=>{
+      const b = document.createElement('div');
+      b.className='event';
+      b.style.top = `calc(var(--hour-height,56px) * ${ev.start-HOURS_START})`;
+      b.style.height = `calc(var(--hour-height,56px) * ${ev.end-ev.start})`;
+      b.textContent = ev.title;
+      col.appendChild(b);
+    });
+    grid.appendChild(col);
+  }
+}
+renderWeekGrid();
+
+/* date strip */
+const dateStrip = document.getElementById('dateStrip');
+const days = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+const nums = [8,9,10,11,12,13,14];
+days.forEach((d,i)=>{
+  const chip = document.createElement('div');
+  chip.className = 'date-chip'+(i===2?' active':'');
+  chip.innerHTML = `<span class="d">${d}</span><span class="n">${nums[i]}</span>`;
+  chip.onclick = ()=>{ document.querySelectorAll('.date-chip').forEach(c=>c.classList.remove('active')); chip.classList.add('active'); };
+  dateStrip.appendChild(chip);
+});
+
+/* zoom slider: 0=40px 1=56px 2=76px */
+const zoomMap = [40,56,76];
+document.getElementById('zoomSlider').addEventListener('input', e=>{
+  phoneScreen.style.setProperty('--hour-height', zoomMap[e.target.value]+'px');
+});
+
+/* day/week toggle */
+document.getElementById('dayWeekToggle').addEventListener('click', e=>{
+  const btn = e.target.closest('button'); if(!btn) return;
+  document.querySelectorAll('#dayWeekToggle button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const isDay = btn.dataset.view === 'day';
+  document.getElementById('dayView').style.display = isDay ? 'flex':'none';
+  document.getElementById('weekView').style.display = isDay ? 'none':'flex';
+});
+
+/* bottom switcher */
+const switcher = document.getElementById('switcher');
+const highlight = document.getElementById('switchHighlight');
+const buttons = [...switcher.querySelectorAll('button')];
+function moveHighlight(idx){ highlight.style.transform = `translateX(${idx*56}px)`; }
+switcher.addEventListener('click', e=>{
+  const btn = e.target.closest('button'); if(!btn) return;
+  const idx = buttons.indexOf(btn);
+  buttons.forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  moveHighlight(idx);
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelector(`.screen[data-screen="${btn.dataset.target}"]`).classList.add('active');
+});
+
+/* theme gallery */
+document.querySelectorAll('.theme-card').forEach(card=>{
+  card.addEventListener('click', ()=>{
+    document.querySelectorAll('.theme-card').forEach(c=>c.classList.remove('selected'));
+    card.classList.add('selected');
+    const t = card.dataset.themePick;
+    phoneScreen.setAttribute('data-theme', t);
+    paintIllustration(t);
+    document.getElementById('customControls').classList.toggle('show', t==='custom');
+  });
+});
+
+/* custom theme controls */
+document.getElementById('customColor').addEventListener('input', e=>{
+  const c = e.target.value;
+  phoneScreen.style.setProperty('--accent-deep', c);
+  phoneScreen.style.setProperty('--accent', c);
+});
+document.getElementById('customPhotoInput').addEventListener('change', e=>{
+  const file = e.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev=>{
+    document.getElementById('customPhoto').style.backgroundImage = `url(${ev.target.result})`;
+    phoneScreen.classList.add('has-photo');
+  };
+  reader.readAsDataURL(file);
+});
+</script>
+</body>
+</html>
