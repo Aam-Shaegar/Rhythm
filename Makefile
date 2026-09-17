@@ -100,7 +100,7 @@ help:
 	@echo "  backend-build   - Build binary for Linux (build/rhytm)"
 	@echo "  backend-run     - Run built binary locally"
 	@echo "  build-all       - Build everything"
-  @echo "  test            - Run all tests"
+	@echo "  test            - Run all tests"
 	@echo "  secrets         - Generate JWT secrets into .env"
 	@echo "  backup-restore file=<archive.sql.gz> - Restore DB from backup"
 	@echo "  test-verbose    - Run tests with verbose output"
