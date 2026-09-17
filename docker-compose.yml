@@ -179,6 +179,10 @@ services:
       - caddy_data:/data
       - caddy_config:/config
 
+    networks:
+      - default
+      - edge
+
     depends_on:
       backend:
         condition: service_healthy
@@ -203,3 +207,8 @@ volumes:
   caddy_config:
 
   backup_data:
+
+networks:
+
+  edge:
+    external: true

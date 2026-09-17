@@ -18,9 +18,8 @@ SECURE_REFRESH_COOKIE=true
 ```
 
 Caddy сам выпустит бесплатный сертификат Let's Encrypt и будет его
-продлевать. Проверка: `curl -sI https://rhythm.example.com/healthz`…
-точнее `curl https://rhythm.example.com/api/v1/../healthz` — см. ниже;
-сертификат виден в браузере (замок, без предупреждений).
+продлевать. Проверка: замок в браузере,
+`curl -s https://rhythm.example.com/healthz` → `{"status":"ok"}`.
 
 **B. Домена нет, только IP.** Let's Encrypt не выдаёт сертификаты на
 голый IP. Варианты:
@@ -92,3 +91,54 @@ docker compose exec backend wget -q -O - http://localhost:8080/healthz
 - Логи: ротация docker-логов настроена (`max-size 10m`), файловые логи
   backend (`LOGGER_FOLDER`) эфемерны — при разборе инцидентов снимать
   через `docker compose logs`.
+
+## 6. Два приложения на одном VDS (Ритм + GoChat)
+
+Порт 80/443 слушает только общий Caddy из этого проекта. GoChat свой
+порт 80 не публикует — его nginx виден Caddy по имени `gochat-nginx`
+через общую docker-сеть `edge`. Маршрутизация — по имени сайта.
+
+Предусловия на VDS: оба имени резолвятся в IP сервера
+(`nslookup <имя>` → IP VDS), открыты входящие 80/443.
+
+```bash
+docker network create edge   # один раз; ignore, если уже есть
+
+# GoChat: отдать :80 (конфиг уже готов в репозитории GoChat)
+cd ~/projects/golang/GoChat
+docker compose up -d --build
+
+# Rhytm: два сайта (конфиг уже готов: Caddyfile + GOCHAT_ADDR)
+cd ~/projects/golang/Rhytm
+docker compose up -d --build
+```
+
+Нужные значения в `.env` (Rhytm, уезжают на VDS через git):
+
+```env
+SITE_ADDR=rhythm-tesler.duckdns.org
+GOCHAT_ADDR=gochat-tesler.duckdns.org
+CORS_ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000,https://rhythm-tesler.duckdns.org,https://gochat-tesler.duckdns.org
+SECURE_REFRESH_COOKIE=true
+```
+
+В GoChat `.env` **на сервере** (файл не в git — править прямо на VDS):
+
+```env
+CORS_ALLOWED_ORIGINS=https://gochat-tesler.duckdns.org
+SECURE_REFRESH_COOKIE=true
+```
+
+Проверки:
+
+```bash
+curl -s https://rhythm-tesler.duckdns.org/healthz   # {"status":"ok"}
+curl -s -o /dev/null -w '%{http_code}\n' https://gochat-tesler.duckdns.org/  # 200
+# Браузер: оба замка зелёные. GoChat: вход + сообщение (проверка wss).
+# Ритм: вход, задача, событие, отчёт.
+```
+
+Откат: если что-то пошло не так — в GoChat compose вернуть
+`ports: ["80:80"]` у nginx и `docker compose up -d` (GoChat снова один
+на :80), а Caddy Ритма остановить. Данные при этом не трогаем:
+у каждого проекта свои volumes.

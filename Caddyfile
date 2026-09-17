@@ -1,14 +1,14 @@
 # Edge proxy: один домен/порт для фронта и API.
 # SITE_ADDR берётся из .env:
 #   - локально/без домена:  :80            (обычный HTTP, без TLS)
-#   - прод с доменом:       rhythm.example.com
+#   - прод с доменом:       rhythm-tesler.duckdns.org
 #     Caddy сам выпустит бесплатный сертификат Let's Encrypt
 #     (нужны A-запись на IP VDS и открытые 80/443) и включит HTTPS.
 {
 	admin off
 }
 
-{$SITE_ADDR} {
+{$SITE_ADDR::80} {
 	encode gzip
 
 	handle /api/* {
@@ -23,4 +23,14 @@
 	handle {
 		reverse_proxy frontend:80
 	}
+}
+
+# Второе приложение на том же VDS (проект GoChat).
+# Его nginx отдан в общую docker-сеть edge под именем gochat-nginx
+# и портов наружу не публикует; весь его трафик (фронт, API, WebSocket)
+# идёт через этот блок. Сертификат — тоже автоматический.
+{$GOCHAT_ADDR:gochat.invalid} {
+	encode gzip
+
+	reverse_proxy gochat-nginx:80
 }
