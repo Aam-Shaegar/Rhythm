@@ -46,14 +46,19 @@ func TestDecodeRegister_EdgeCases(t *testing.T) {
 }
 
 func TestDecodeLogin_EdgeCases(t *testing.T) {
-	valid := `{"email":"a@b.com","password":"secret123"}`
-	r := httptest.NewRequest("POST", "/", strings.NewReader(valid))
-	var in users_dtos.LoginInput
-	if err := DecodeAndValidateRequest(r, &in); err != nil {
-		t.Fatalf("valid login rejected: %v", err)
+	valid := []string{
+		`{"email":"a@b.com","password":"secret123"}`,
+		`{"email":"someusername","password":"secret123"}`,
+	}
+	for _, v := range valid {
+		r := httptest.NewRequest("POST", "/", strings.NewReader(v))
+		var in users_dtos.LoginInput
+		if err := DecodeAndValidateRequest(r, &in); err != nil {
+			t.Fatalf("valid login %s rejected: %v", v, err)
+		}
 	}
 	invalid := []string{
-		`{"email":"bad","password":"x"}`,
+		`{"email":"ab","password":"x"}`,
 		`{"email":"a@b.com"}`,
 		`{"password":"x"}`,
 		`{}`,

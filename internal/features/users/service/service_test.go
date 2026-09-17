@@ -307,3 +307,35 @@ func TestUpdateProfile_Success(t *testing.T) {
 func strPtr(s string) *string {
 	return &s
 }
+func TestLogin_ByUsername(t *testing.T) {
+	repo := newMockUsersRepo()
+	jwtSvc := newMockJwtService()
+	svc := NewUsersService(repo, jwtSvc)
+
+	hash, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
+	user := &users_domain.User{
+		ID:           uuid.New(),
+		Username:     "testuser",
+		Email:        "test@example.com",
+		PasswordHash: string(hash),
+	}
+	repo.Create(context.Background(), user)
+
+	resp, err := svc.Login(context.Background(), dtos.LoginInput{Email: "testuser", Password: "password123"})
+	if err != nil {
+		t.Fatalf("login by username failed: %v", err)
+	}
+	if resp.User.Email != "test@example.com" {
+		t.Errorf("expected test@example.com, got %s", resp.User.Email)
+	}
+}
+
+func TestLogin_UnknownUsername_Unauthorized(t *testing.T) {
+	repo := newMockUsersRepo()
+	svc := NewUsersService(repo, newMockJwtService())
+
+	_, err := svc.Login(context.Background(), dtos.LoginInput{Email: "ghost", Password: "password123"})
+	if !errors.Is(err, core_errors.ErrUnauthorized) {
+		t.Errorf("expected ErrUnauthorized, got %v", err)
+	}
+}

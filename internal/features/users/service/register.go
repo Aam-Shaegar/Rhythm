@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	core_errors "github.com/Aam-Shaegar/Rhythm/internal/core/errors"
@@ -84,7 +85,16 @@ func (s *UsersServiceImpl) Register(ctx context.Context, input dtos.RegisterInpu
 }
 
 func (s *UsersServiceImpl) Login(ctx context.Context, input dtos.LoginInput) (*dtos.AuthResponse, error) {
-	user, err := s.repo.GetByEmail(ctx, input.Email)
+	var (
+		user *domain.User
+		err  error
+	)
+	// TZ U.8/F.2: identifier may be a username or an e-mail address.
+	if strings.Contains(input.Email, "@") {
+		user, err = s.repo.GetByEmail(ctx, input.Email)
+	} else {
+		user, err = s.repo.GetByUsername(ctx, input.Email)
+	}
 	if err != nil {
 		if errors.Is(err, core_errors.ErrNotFound) {
 			return nil, core_errors.ErrUnauthorized

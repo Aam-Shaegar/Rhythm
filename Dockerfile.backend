@@ -25,6 +25,9 @@ WORKDIR /app
 
 COPY --from=builder /app/rhytm .
 
+# App writes file logs to ./logs (LOGGER_FOLDER) — must be writable for USER app.
+RUN mkdir -p /app/logs && chown -R app:app /app
+
 ENV TZ=UTC
 
 USER app

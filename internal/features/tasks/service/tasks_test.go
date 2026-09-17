@@ -516,6 +516,42 @@ func TestUpdateTask_Success(t *testing.T) {
 	}
 }
 
+func TestUpdateTask_IsCompletedToggle(t *testing.T) {
+	tasksRepo := newMockTasksRepo()
+	remindersRepo := newMockRemindersRepo()
+	svc := NewTasksService(tasksRepo, remindersRepo)
+
+	userID := uuid.New()
+	taskID := uuid.New()
+	task := &domain.Task{
+		ID:        taskID,
+		UserID:    userID,
+		Title:     "Toggle Task",
+		DueAt:     time.Now().Add(time.Hour),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	tasksRepo.Create(context.Background(), task)
+
+	done := true
+	result, err := svc.UpdateTask(context.Background(), userID, taskID, domain.UpdateTaskInput{IsCompleted: &done})
+	if err != nil {
+		t.Fatalf("UpdateTask(is_completed=true) failed: %v", err)
+	}
+	if !result.IsCompleted || result.CompletedAt == nil {
+		t.Errorf("expected completed with completed_at, got %+v", result)
+	}
+
+	todo := false
+	result, err = svc.UpdateTask(context.Background(), userID, taskID, domain.UpdateTaskInput{IsCompleted: &todo})
+	if err != nil {
+		t.Fatalf("UpdateTask(is_completed=false) failed: %v", err)
+	}
+	if result.IsCompleted || result.CompletedAt != nil {
+		t.Errorf("expected uncompleted without completed_at, got %+v", result)
+	}
+}
+
 func TestUpdateTask_WrongUser(t *testing.T) {
 	tasksRepo := newMockTasksRepo()
 	remindersRepo := newMockRemindersRepo()

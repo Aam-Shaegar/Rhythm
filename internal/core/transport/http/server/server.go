@@ -75,7 +75,19 @@ func (h *HTTPServer) Run(ctx context.Context) error {
 	return nil
 }
 
+func (s *HTTPServer) RegisterHealth() {
+	// Liveness probe for orchestrators and reverse proxies.
+	// Intentionally unauthenticated and dependency-free: a 200 here means
+	// the HTTP layer is up (DB/Redis have their own healthchecks in compose).
+	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"status":"ok"}`))
+	})
+}
+
 func (s *HTTPServer) RegisterAPIRouters(routers ...*APIVersionRouter) {
+
 	for _, router := range routers {
 		prefix := "/api/" + string(router.apiVersion)
 

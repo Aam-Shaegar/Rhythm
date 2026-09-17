@@ -1,7 +1,7 @@
 include .env
 export
 
-.PHONY: infra infra-down migrate-up migrate-down migrate-action migrate-create run backend-build backend-run build-all test
+.PHONY: infra infra-down migrate-up migrate-down migrate-action migrate-create run backend-build backend-run build-all test secrets backup-restore
 
 infra:
 	@docker compose up -d postgres redis
@@ -53,6 +53,21 @@ build-all: backend-build
 test:
 	@go test ./internal/... -count=1
 
+secrets:
+	@echo "Generating JWT secrets into .env (old values will be replaced)..."
+	@ACCESS=$$(openssl rand -hex 32); \
+	REFRESH=$$(openssl rand -hex 32); \
+	sed -i.bak -E "s|^JWT_ACCESS_SECRET=.*|JWT_ACCESS_SECRET=$$ACCESS|; s|^JWT_REFRESH_SECRET=.*|JWT_REFRESH_SECRET=$$REFRESH|" .env && rm -f .env.bak; \
+	echo "Done. Also set a strong POSTGRES_PASSWORD manually."
+
+backup-restore:
+	@if [ -z "$(file)" ]; then \
+		echo "Error: file is required. Usage: make backup-restore file=<archive.sql.gz>"; \
+		exit 1; \
+	fi; \
+	echo "Restoring $(file) into postgres (database: $(POSTGRES_NAME))..."; \
+	gunzip -c "$(file)" | docker compose exec -T postgres psql -U "$(POSTGRES_USER)" -d "$(POSTGRES_NAME)"
+
 test-verbose:
 	@go test ./internal/... -v -count=1
 
@@ -85,7 +100,9 @@ help:
 	@echo "  backend-build   - Build binary for Linux (build/rhytm)"
 	@echo "  backend-run     - Run built binary locally"
 	@echo "  build-all       - Build everything"
-	@echo "  test            - Run all tests"
+  @echo "  test            - Run all tests"
+  @echo "  secrets         - Generate JWT secrets into .env"
+  @echo "  backup-restore file=<archive.sql.gz> - Restore DB from backup"
 	@echo "  test-verbose    - Run tests with verbose output"
 	@echo "  docker-build    - Build Docker image"
 	@echo "  docker-up       - Start all services via docker-compose"

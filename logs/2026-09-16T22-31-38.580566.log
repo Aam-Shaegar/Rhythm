@@ -1,0 +1,4 @@
+2026-09-17T01:31:38.580838	DEBUG	server/main.go:63	application time zone	{"zone": "Europe/Moscow"}
+2026-09-17T01:31:38.581092	DEBUG	server/main.go:66	initializing postgres connection pool
+2026-09-17T01:31:38.594309	DEBUG	server/main.go:74	initializing redis client
+2026-09-17T01:31:43.721171	FATAL	server/main.go:79	failed to ping redis	{"error": "i/o timeout"}

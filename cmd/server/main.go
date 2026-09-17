@@ -159,6 +159,7 @@ func main() {
 		core_http_middleware.Panic(),
 	)
 	httpServer.RegisterAPIRouters(apiRouter)
+	httpServer.RegisterHealth()
 
 	// Background workers
 	go jwtSvc.StartCleanup(ctx, time.Hour, logger)

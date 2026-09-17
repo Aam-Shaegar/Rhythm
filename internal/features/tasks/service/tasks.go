@@ -127,6 +127,15 @@ func (s *TasksServiceImpl) UpdateTask(ctx context.Context, userID uuid.UUID, tas
 		}
 		task.RecurrenceEnd = &t
 	}
+	if input.IsCompleted != nil {
+		task.IsCompleted = *input.IsCompleted
+		if task.IsCompleted {
+			now := time.Now().UTC()
+			task.CompletedAt = &now
+		} else {
+			task.CompletedAt = nil
+		}
+	}
 
 	if err := s.repo.Update(ctx, task); err != nil {
 		return nil, err
