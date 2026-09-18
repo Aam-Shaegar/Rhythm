@@ -3,18 +3,23 @@ import { apiFetch } from '../api/client';
 import type { ReminderSettings, ThemeName, User } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
 import { ErrorBlock, FieldError, Spinner } from '../components/ui';
+import {
+  DEFAULT_CUSTOM,
+  loadCustom,
+  loadPhoto,
+  saveCustom,
+  saveThemeName,
+  type CustomPalette,
+} from '../theme';
 
-const THEME_KEY = 'rhytm.theme';
-const THEME_COLOR_KEY = 'rhytm.theme.color';
-const THEME_PHOTO_KEY = 'rhytm.theme.photo';
-
+// Оставлен для совместимости (раньше имя темы читали отсюда).
 export function loadTheme(): { name: ThemeName; color: string; photo: string | null } {
-  return {
-    name: (localStorage.getItem(THEME_KEY) as ThemeName) || 'forest',
-    color: localStorage.getItem(THEME_COLOR_KEY) || '#8a8f6e',
-    photo: localStorage.getItem(THEME_PHOTO_KEY),
-  };
+  const p = loadCustom();
+  return { name: (localStorage.getItem('rhytm.theme') as ThemeName) || 'forest', color: p.accent, photo: loadPhoto() };
 }
+
+// Фото храним как dataURL в localStorage: лимит ~2.5 МБ, иначе квота.
+const MAX_PHOTO_BYTES = 2.5 * 1024 * 1024;
 
 const DEFAULT_SETTINGS: ReminderSettings = {
   event_reminders: true,
@@ -45,10 +50,16 @@ function initials(name: string): string {
 export default function SettingsScreen({
   theme,
   setTheme,
+  artOn,
+  onArtChange,
+  onThemeChanged,
   notify,
 }: {
   theme: ThemeName;
   setTheme: (t: ThemeName) => void;
+  artOn: boolean;
+  onArtChange: (on: boolean) => void;
+  onThemeChanged: () => void;
   notify: (k: 'ok' | 'err', t: string) => void;
 }) {
   const { user, logout, refreshUser } = useAuth();
@@ -61,8 +72,8 @@ export default function SettingsScreen({
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState<ReminderSettings>(DEFAULT_SETTINGS);
   const [settingsBusy, setSettingsBusy] = useState(false);
-  const [customColor, setCustomColor] = useState(() => localStorage.getItem(THEME_COLOR_KEY) || '#8a8f6e');
-  const [photo, setPhoto] = useState<string | null>(() => localStorage.getItem(THEME_PHOTO_KEY));
+  const [custom, setCustom] = useState<CustomPalette>(() => loadCustom());
+  const [photo, setPhoto] = useState<string | null>(() => loadPhoto());
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -135,37 +146,58 @@ export default function SettingsScreen({
 
   function pickTheme(t: ThemeName) {
     setTheme(t);
-    localStorage.setItem(THEME_KEY, t);
+    saveThemeName(t);
+    onThemeChanged();
+  }
+
+  function setPalette(patch: Partial<CustomPalette>) {
+    const next = { ...custom, ...patch };
+    setCustom(next);
+    saveCustom(next);
+    onThemeChanged();
+  }
+
+  function resetPalette() {
+    setCustom({ ...DEFAULT_CUSTOM });
+    saveCustom({ ...DEFAULT_CUSTOM });
+    onThemeChanged();
+    notify('ok', 'Цвета сброшены');
   }
 
   function onPhoto(file: File | undefined) {
     if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      notify('err', 'Нужен файл-картинка');
+      return;
+    }
+    if (file.size > MAX_PHOTO_BYTES) {
+      notify('err', 'Картинка тяжелее 2.5 МБ — сожмите её и попробуйте снова');
+      return;
+    }
     if (photo) URL.revokeObjectURL(photo);
-    const url = URL.createObjectURL(file);
-    // Хранить blob-URL между сессиями нельзя — читаем как dataURL
     const reader = new FileReader();
     reader.onload = () => {
       const dataUrl = String(reader.result ?? '');
-      localStorage.setItem(THEME_PHOTO_KEY, dataUrl);
+      try {
+        localStorage.setItem('rhytm.theme.photo', dataUrl);
+      } catch {
+        notify('err', 'Не хватило места в хранилище — уберите старое фото');
+        return;
+      }
       setPhoto(dataUrl);
+      onThemeChanged();
+      notify('ok', 'Фоновая картинка установлена');
     };
+    reader.onerror = () => notify('err', 'Не получилось прочитать файл');
     reader.readAsDataURL(file);
-    void url;
   }
 
   function removePhoto() {
     if (photo && photo.startsWith('blob:')) URL.revokeObjectURL(photo);
-    localStorage.removeItem(THEME_PHOTO_KEY);
+    localStorage.removeItem('rhytm.theme.photo');
     setPhoto(null);
+    onThemeChanged();
   }
-
-  useEffect(() => {
-    localStorage.setItem(THEME_COLOR_KEY, customColor);
-    if (theme === 'custom') {
-      document.getElementById('phoneScreen')?.style.setProperty('--accent-deep', customColor);
-      document.getElementById('phoneScreen')?.style.setProperty('--accent', customColor);
-    }
-  }, [customColor, theme]);
 
   if (loading) return <Spinner />;
   if (error)
@@ -237,19 +269,48 @@ export default function SettingsScreen({
               </button>
             ))}
           </div>
+          {theme !== 'custom' && (
+            <div className="switch-row" style={{ marginTop: 10 }}>
+              <span className="t">Фоновые рисунки</span>
+              <button
+                className={`toggle${artOn ? ' on' : ''}`}
+                role="switch"
+                aria-checked={artOn}
+                aria-label="Фоновые рисунки"
+                onClick={() => onArtChange(!artOn)}
+              />
+            </div>
+          )}
           {theme === 'custom' && (
             <div className="custom-controls show">
+              {(
+                [
+                  ['accent', 'Основной цвет'],
+                  ['bgA', 'Фон сверху'],
+                  ['bgB', 'Фон снизу'],
+                  ['text', 'Цвет текста'],
+                ] as Array<[keyof CustomPalette, string]>
+              ).map(([key, label]) => (
+                <label key={key}>
+                  {label}
+                  <input
+                    type="color"
+                    value={custom[key]}
+                    onChange={(e) => setPalette({ [key]: e.target.value })}
+                    aria-label={label}
+                  />
+                </label>
+              ))}
               <label>
-                Цвет
-                <input type="color" value={customColor} onChange={(e) => setCustomColor(e.target.value)} aria-label="Цвет темы" />
+                Картинка на фон
+                <input type="file" accept="image/*" onChange={(e) => onPhoto(e.target.files?.[0])} aria-label="Фоновая картинка" />
               </label>
-              <label>
-                Фото
-                <input type="file" accept="image/*" onChange={(e) => onPhoto(e.target.files?.[0])} aria-label="Фоновая фотография" />
-              </label>
+              <button className="btn-secondary" onClick={resetPalette} type="button">
+                Сбросить цвета
+              </button>
               {photo && (
                 <button className="btn-secondary" onClick={removePhoto} type="button">
-                  Убрать фото
+                  Убрать картинку
                 </button>
               )}
             </div>

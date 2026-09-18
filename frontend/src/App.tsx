@@ -9,7 +9,9 @@ import DashboardScreen from './screens/DashboardScreen';
 import ScheduleScreen from './screens/ScheduleScreen';
 import TasksScreen from './screens/TasksScreen';
 import ReportsScreen from './screens/ReportsScreen';
-import SettingsScreen, { loadTheme } from './screens/SettingsScreen';
+import SettingsScreen from './screens/SettingsScreen';
+import ThemeArt from './components/ThemeArt';
+import { applyThemeToDom, loadArt, loadThemeName, saveArt } from './theme';
 import NotificationsPanel from './components/NotificationsPanel';
 import { Toasts, type Toast } from './components/ui';
 
@@ -43,7 +45,11 @@ function BellIcon() {
 function Shell() {
   const { user, loading, logout } = useAuth();
   const [tab, setTab] = useState<Tab>('home');
-  const [theme, setTheme] = useState<ThemeName>(() => loadTheme().name);
+  const [theme, setTheme] = useState<ThemeName>(() => loadThemeName());
+  const [artOn, setArtOn] = useState<boolean>(() => loadArt());
+  // Счётчик изменений палитры/фото своей темы — триггер переприменения к DOM.
+  const [themeRev, setThemeRev] = useState(0);
+  const refreshTheme = useCallback(() => setThemeRev((r) => r + 1), []);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [clock, setClock] = useState(() => new Date());
   const [notices, setNotices] = useState<Notice[]>([]);
@@ -86,33 +92,18 @@ function Shell() {
     return () => clearInterval(t);
   }, [user, loadNotices, tab]);
 
+  // Единственное место применения темы к DOM: имя, флаг рисунков, палитра custom.
   useEffect(() => {
-    document.getElementById('phoneScreen')?.setAttribute('data-theme', theme);
-    localStorage.setItem('rhytm.theme', theme);
-  }, [theme]);
+    applyThemeToDom();
+  }, [theme, artOn, themeRev]);
 
-  useEffect(() => {
-    const savedPhoto = localStorage.getItem('rhytm.theme.photo');
-    const savedColor = localStorage.getItem('rhytm.theme.color');
-    const screen = document.getElementById('phoneScreen');
-    if (theme === 'custom') {
-      if (savedColor && screen) {
-        screen.style.setProperty('--accent-deep', savedColor);
-        screen.style.setProperty('--accent', savedColor);
-      }
-      if (savedPhoto) {
-        screen?.classList.add('has-photo');
-        const el = document.getElementById('customPhoto');
-        if (el) el.style.backgroundImage = `url(${savedPhoto})`;
-      } else {
-        screen?.classList.remove('has-photo');
-      }
-    } else {
-      screen?.classList.remove('has-photo');
-      screen?.style.removeProperty('--accent-deep');
-      screen?.style.removeProperty('--accent');
-    }
-  }, [theme]);
+  const handleArtChange = useCallback(
+    (on: boolean) => {
+      saveArt(on);
+      setArtOn(on);
+    },
+    [],
+  );
 
   useEffect(() => {
     const t = setInterval(() => setClock(new Date()), 20000);
@@ -174,6 +165,7 @@ function Shell() {
       <div className="phone">
         <div className="phone-screen" data-theme={theme} id="phoneScreen">
           <div className="bg-layer" />
+          <ThemeArt theme={theme} artOn={artOn} />
           <div className="status-bar">
             <span>{clockLabel}</span>
             <span>Ритм</span>
@@ -191,6 +183,7 @@ function Shell() {
     <div className="phone">
       <div className="phone-screen" data-theme={theme} id="phoneScreen">
         <div className="bg-layer" />
+        <ThemeArt theme={theme} artOn={artOn} />
         <div className="bg-custom-photo" id="customPhoto" />
         <div className="bg-custom-overlay" />
 
@@ -266,7 +259,16 @@ function Shell() {
             {tab === 'calendar' && <ScheduleScreen notify={notify} />}
             {tab === 'tasks' && <TasksScreen notify={notify} />}
             {tab === 'reports' && <ReportsScreen />}
-            {tab === 'settings' && <SettingsScreen theme={theme} setTheme={setTheme} notify={notify} />}
+            {tab === 'settings' && (
+              <SettingsScreen
+                theme={theme}
+                setTheme={setTheme}
+                artOn={artOn}
+                onArtChange={handleArtChange}
+                onThemeChanged={refreshTheme}
+                notify={notify}
+              />
+            )}
           </div>
 
           {/* Mobile bottom switcher */}
