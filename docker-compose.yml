@@ -74,7 +74,10 @@ services:
 
     build:
       context: .
-      dockerfile: Dockerfile.backend
+      # По умолчанию — многостадийная сборка. На слабом VDS можно
+      # переключить на готовый бинарь: BACKEND_DOCKERFILE=Dockerfile.backend.runtime
+      # (бинарь собрать дома: make backend-build && make backend-sync VDS=...).
+      dockerfile: ${BACKEND_DOCKERFILE:-Dockerfile.backend}
 
     restart: unless-stopped
 

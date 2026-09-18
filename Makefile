@@ -74,6 +74,16 @@ test-verbose:
 docker-build:
 	@docker compose build backend
 
+# Запасной путь для слабого VDS: собрать бинарь дома и залить по scp.
+# Использование: make backend-build && make backend-sync VDS=deploy@45.8.248.97:~/Rhythm
+# На VDS при этом compose должен использовать Dockerfile.backend.runtime.
+backend-sync:
+	@if [ -z "$(VDS)" ]; then \
+		echo "Usage: make backend-sync VDS=user@host:~/Rhythm"; \
+		exit 1; \
+	fi; \
+	scp ./build/rhytm "$(VDS)/build/rhytm" && echo "Binary synced to $(VDS)"
+
 docker-up:
 	@docker compose up -d
 
@@ -105,6 +115,7 @@ help:
 	@echo "  backup-restore file=<archive.sql.gz> - Restore DB from backup"
 	@echo "  test-verbose    - Run tests with verbose output"
 	@echo "  docker-build    - Build Docker image"
+	@echo "  backend-sync VDS=user@host:~/Rhythm - Scp local binary to VDS (weak servers)"
 	@echo "  docker-up       - Start all services via docker-compose"
 	@echo "  docker-down     - Stop all services"
 	@echo "  docker-logs     - View backend logs"

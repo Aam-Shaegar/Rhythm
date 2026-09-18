@@ -82,6 +82,24 @@ docker compose up -d --build   # миграции применятся сами 
 docker compose exec backend wget -q -O - http://localhost:8080/healthz
 ```
 
+### Если VDS слабый и сборка идёт минутами
+
+Первая сборка Go (~2 мин) — это нормально и разово: компилируются все
+зависимости. Дальше работают BuildKit-кэши в `Dockerfile.backend`, и
+пересборки занимают секунды. Если сервер совсем не тянет (мало RAM/CPU),
+есть запасной путь — собрать дома и залить готовый бинарь:
+
+```bash
+# дома:
+make backend-build
+make backend-sync VDS=deploy@45.8.248.97:~/Rhythm
+# на VDS в .env одна строка:
+#   BACKEND_DOCKERFILE=Dockerfile.backend.runtime
+# дальше обычный docker compose up -d --build (копирование бинаря — секунды)
+```
+
+По умолчанию этот путь не нужен — держите многостадийную сборку.
+
 ## 5. Что осознанно осталось за скобками
 
 - R.2 (1000 concurrent): нагрузочно не тестировалось — перед ростом
