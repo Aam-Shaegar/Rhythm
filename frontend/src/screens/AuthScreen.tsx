@@ -76,8 +76,21 @@ export default function AuthScreen({ notify }: { notify: (kind: 'ok' | 'err', te
           </button>
         </div>
       </div>
-      <div className="screen-body">
-        <form className="form-card" onSubmit={onSubmit} noValidate>
+      <div className="screen-body auth-body">
+        <div className="auth-split">
+          <div className="auth-hero">
+            <div className="auth-hero-mark" aria-hidden="true">
+              Р
+            </div>
+            <div className="auth-hero-title">Ритм</div>
+            <div className="auth-hero-sub">Умный органайзер: расписание, задачи и отчёты — в одном окне</div>
+            <ul className="auth-hero-list">
+              <li>Расписание дня и недели с напоминаниями</li>
+              <li>Задачи с повторениями и отметками</li>
+              <li>Отчёты о выполнении и статистика</li>
+            </ul>
+          </div>
+          <form className="form-card" onSubmit={onSubmit} noValidate>
           {mode === 'register' && (
             <label className="field">
               <span>Имя пользователя</span>
@@ -122,7 +135,8 @@ export default function AuthScreen({ notify }: { notify: (kind: 'ok' | 'err', te
           <button className="btn-primary" type="submit" disabled={busy}>
             {busy ? 'Подождите…' : mode === 'login' ? 'Войти' : 'Создать аккаунт'}
           </button>
-        </form>
+          </form>
+        </div>
       </div>
     </div>
   );
