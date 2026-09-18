@@ -12,45 +12,34 @@ body {
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   justify-content: flex-start;
-  padding: 32px 16px 48px;
+  padding: 0;
   color: #e9e7e2;
 }
+#root { width: 100%; min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; }
 button { font-family: inherit; }
-.page-label {
-  font-size: 13px;
-  letter-spacing: 0.2px;
-  color: #8f8d92;
-  margin-bottom: 18px;
-  text-align: center;
-  max-width: 520px;
-  line-height: 1.5;
-}
+.page-label { display: none; }
 
-/* ===== APP FRAME (бывший phone: теперь responsive) ===== */
+/* ===== APP SHELL: всегда 100% экрана, без телефонной рамки ===== */
 .phone {
   position: relative;
-  width: min(430px, 100%);
-  height: min(880px, calc(100dvh - 130px));
-  min-height: 620px;
-  border-radius: 46px;
-  padding: 12px;
-  background: linear-gradient(160deg, #3a3a3f, #111113);
-  box-shadow: 0 40px 80px -20px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
-}
-@media (max-width: 480px) {
-  body { padding: 0; }
-  .page-label { display: none; }
-  .phone { width: 100%; height: 100dvh; min-height: 100dvh; border-radius: 0; padding: 0; }
-  .phone-screen { border-radius: 0 !important; }
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 100vh;
+  min-height: 100dvh;
+  border-radius: 0;
+  padding: 0;
+  background: none;
+  box-shadow: none;
 }
 .phone-screen {
   --hour-height: 56px;
   position: relative;
   width: 100%;
   height: 100%;
-  border-radius: 36px;
+  border-radius: 0;
   overflow: hidden;
   isolation: isolate;
   transition: background 0.5s ease;
@@ -409,18 +398,7 @@ input[type='color'] { width: 26px; height: 26px; border: none; border-radius: 50
 
 /* ===== desktop ≥900px (ТЗ U.4: широкие экраны) ===== */
 @media (min-width: 900px) {
-  body { padding: 28px 24px 40px; }
-  .page-label { display: none; }
-  .phone {
-    width: min(1280px, 100%);
-    height: min(860px, calc(100dvh - 56px));
-    min-height: 640px;
-    border-radius: 28px;
-    padding: 10px;
-  }
-  .phone-screen { border-radius: 20px; display: flex; }
-  .bg-layer, .bg-custom-photo, .bg-custom-overlay { border-radius: 20px; }
-
+  .phone-screen { display: flex; }
   .status-bar, .switcher-wrap { display: none; }
 
   .sidebar {
@@ -475,21 +453,26 @@ input[type='color'] { width: 26px; height: 26px; border: none; border-radius: 50
   .form-card { max-width: 520px; margin: 0 auto; width: 100%; }
   .fab { right: 30px; bottom: 30px; }
 
+  /* Единая ширина контента на всех вкладках: ничего не прыгает при переключении */
+  [data-screen='home'] .screen-body,
+  [data-screen='tasks'] .screen-body,
+  [data-screen='reports'] .screen-body,
+  [data-screen='settings'] .screen-body,
+  .screen-head {
+    max-width: 1080px;
+    margin-left: auto;
+    margin-right: auto;
+    width: 100%;
+  }
+  [data-screen='calendar'] .screen-head { max-width: none; }
+
+  /* dashboard: две колонки */
+  .dash-cols { display: grid; grid-template-columns: 1.2fr 1fr; gap: 18px; align-items: start; }
+
   .modal-backdrop { align-items: center; padding: 24px; }
   .modal { max-width: 560px; border-radius: 22px; }
   .toasts { left: auto; right: 26px; width: 340px; top: 66px; }
   .notif-drawer { border-radius: 0 20px 20px 0; }
-
-  /* dashboard: две колонки */
-  [data-screen='home'] .screen-body { max-width: 1020px; }
-  .dash-cols { display: grid; grid-template-columns: 1.2fr 1fr; gap: 18px; align-items: start; }
-}
-
-/* desktop wide ≥1200px: отчёты и настройки шире */
-@media (min-width: 1200px) {
-  [data-screen='reports'] .screen-body { max-width: 900px; }
-  [data-screen='settings'] .screen-body { max-width: 880px; }
-  [data-screen='tasks'] .screen-body { max-width: 860px; margin: 0 auto; width: 100%; }
 }
 
 /* prod a11y: уважение к reduced motion */
@@ -500,13 +483,13 @@ input[type='color'] { width: 26px; height: 26px; border: none; border-radius: 50
 /* ===== auth split (desktop): бренд-панель + форма ===== */
 .auth-hero { display: none; }
 @media (min-width: 900px) {
-  [data-screen='auth'] .screen-head { max-width: 1020px; margin: 0 auto; width: 100%; }
+  [data-screen='auth'] .screen-head { max-width: 1080px; margin: 0 auto; width: 100%; }
   [data-screen='auth'] .screen-body {
     display: flex; align-items: center; justify-content: center;
   }
   .auth-split {
     display: grid; grid-template-columns: 1fr 1.1fr;
-    width: min(980px, 100%);
+    width: min(1080px, 100%);
     background: var(--surface); border-radius: 24px; overflow: hidden;
     backdrop-filter: blur(8px);
   }
@@ -538,9 +521,8 @@ input[type='color'] { width: 26px; height: 26px; border: none; border-radius: 50
   }
 }
 
-/* ===== tablet 600–899px: шире телефонной рамки, но ещё мобильная навигация ===== */
+/* ===== tablet 600–899px: модалки по центру, мобильная навигация ===== */
 @media (min-width: 600px) and (max-width: 899px) {
-  .phone { width: min(560px, 100%); }
   .modal { max-width: 520px; margin: 0 auto; border-radius: 22px; }
   .modal-backdrop { align-items: center; padding: 24px; }
   .toasts { max-width: 420px; margin: 0 auto; left: 16px; right: 16px; }
