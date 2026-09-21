@@ -29,3 +29,5 @@
 2026-09-17T14:37:55.462311	DEBUG	middleware/common.go:78	>>> incoming HTTP request	{"request_id": "6f9009c2-f923-43f2-a1ef-cee3790c2143", "url": "/api/v1/users/me", "http_method": "GET", "time": "2026-09-17T11:37:55.462175"}
 2026-09-17T14:37:55.464451	WARN	response/handler.go:65	invalid access token	{"request_id": "6f9009c2-f923-43f2-a1ef-cee3790c2143", "url": "/api/v1/users/me", "error": "unauthorized"}
 2026-09-17T14:37:55.465262	DEBUG	middleware/common.go:86	<<< done HTTP request	{"request_id": "6f9009c2-f923-43f2-a1ef-cee3790c2143", "url": "/api/v1/users/me", "HTTP Response status code": 401, "latency": "3.087083ms"}
+2026-09-19T12:59:37.294850	DEBUG	service/reminders.go:155	processed reminders	{"count": 1}
+2026-09-20T13:03:11.663825	DEBUG	service/reminders.go:155	processed reminders	{"count": 2}

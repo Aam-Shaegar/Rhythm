@@ -74,7 +74,16 @@ button { font-family: inherit; }
 .bg-illustration {
   position: absolute; inset: 0; z-index: 0;
   width: 100%; height: 100%;
+  overflow: hidden;
   pointer-events: none;
+}
+.bg-illustration img {
+  width: 100%; height: 100%;
+  object-fit: cover; object-position: center;
+  /* PNG тёмные со светлыми дудлами: screen растворяет подложку,
+     рисунки остаются поверх светлого градиента темы */
+  mix-blend-mode: screen;
+  filter: saturate(1.15);
 }
 .no-art .bg-illustration { display: none; }
 .bg-custom-photo {
@@ -255,14 +264,27 @@ input[type='range'].zoom::-moz-range-thumb {
 .theme-swatch.tc { background: linear-gradient(180deg, #f3e3cd, #d8b48f); }
 .theme-swatch.tl { background: linear-gradient(180deg, #f6e3ee, #d3bfe6); }
 .theme-swatch.tu { background: linear-gradient(135deg, #dfe2c9, #c8caa8); }
+/* Миниатюры реальных фонов прямо в карточках выбора темы */
+.theme-swatch.tf { background-image: url('/themes/forest.png'); background-size: cover; background-position: center; }
+.theme-swatch.tc { background-image: url('/themes/coffee.png'); background-size: cover; background-position: center; }
+.theme-swatch.tl { background-image: url('/themes/lavender.png'); background-size: cover; background-position: center; }
 .theme-name { font-size: 12px; font-weight: 700; color: var(--text); display: block; }
 .custom-controls { margin-top: 10px; display: none; gap: 8px; flex-wrap: wrap; }
-.custom-controls.show { display: flex; }
-.custom-controls label {
-  flex: 1; min-width: 130px; display: flex; align-items: center; justify-content: center; gap: 6px;
-  background: var(--surface-strong); border-radius: 12px; padding: 9px; font-size: 11.5px; font-weight: 700;
-  color: var(--text); cursor: pointer;
+.custom-controls.show { display: flex; flex-direction: column; flex-wrap: nowrap; }
+/* Строка выбора цвета: подпись слева, кружок справа — как switch-row */
+.color-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  background: var(--surface-strong); border-radius: 12px; padding: 9px 12px;
+  font-size: 12.5px; font-weight: 700; color: var(--text); cursor: pointer;
 }
+/* Превью загруженной картинки + ровный ряд кнопок */
+.photo-preview { width: 100%; height: 110px; object-fit: cover; border-radius: 12px; display: block; }
+.photo-row { display: flex; gap: 8px; }
+.photo-row > * { flex: 1; }
+.photo-upload {
+  position: relative; display: flex; align-items: center; justify-content: center; text-align: center;
+}
+.file-hidden { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 input[type='color'] { width: 26px; height: 26px; border: none; border-radius: 50%; overflow: hidden; padding: 0; background: none; cursor: pointer; }
 .switch-row { display: flex; align-items: center; justify-content: space-between; background: var(--surface); border-radius: 14px; padding: 12px 14px; margin-bottom: 8px; }
 .switch-row .t { font-size: 13.5px; font-weight: 600; color: var(--text); }

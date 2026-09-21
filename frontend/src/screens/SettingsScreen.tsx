@@ -283,6 +283,9 @@ export default function SettingsScreen({
           )}
           {theme === 'custom' && (
             <div className="custom-controls show">
+              <div className="settings-label" style={{ width: '100%', margin: 0 }}>
+                Цвета
+              </div>
               {(
                 [
                   ['accent', 'Основной цвет'],
@@ -291,8 +294,8 @@ export default function SettingsScreen({
                   ['text', 'Цвет текста'],
                 ] as Array<[keyof CustomPalette, string]>
               ).map(([key, label]) => (
-                <label key={key}>
-                  {label}
+                <label key={key} className="color-row">
+                  <span>{label}</span>
                   <input
                     type="color"
                     value={custom[key]}
@@ -301,18 +304,30 @@ export default function SettingsScreen({
                   />
                 </label>
               ))}
-              <label>
-                Картинка на фон
-                <input type="file" accept="image/*" onChange={(e) => onPhoto(e.target.files?.[0])} aria-label="Фоновая картинка" />
-              </label>
+              <div className="settings-label" style={{ width: '100%', margin: '4px 0 0' }}>
+                Фоновая картинка
+              </div>
+              {photo && <img className="photo-preview" src={photo} alt="Превью фоновой картинки" />}
+              <div className="photo-row">
+                <label className="btn-secondary photo-upload">
+                  Загрузить
+                  <input
+                    className="file-hidden"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => onPhoto(e.target.files?.[0])}
+                    aria-label="Загрузить фоновую картинку"
+                  />
+                </label>
+                {photo && (
+                  <button className="btn-secondary" onClick={removePhoto} type="button">
+                    Убрать
+                  </button>
+                )}
+              </div>
               <button className="btn-secondary" onClick={resetPalette} type="button">
                 Сбросить цвета
               </button>
-              {photo && (
-                <button className="btn-secondary" onClick={removePhoto} type="button">
-                  Убрать картинку
-                </button>
-              )}
             </div>
           )}
         </div>
