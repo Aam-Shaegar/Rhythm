@@ -370,6 +370,23 @@ func TestProcessPending_NoLoggerNoPanic(t *testing.T) {
 	}
 }
 
+func TestNewWebPushSender_NormalizesSubject(t *testing.T) {
+	// webpush-go prepends "mailto:" itself: passing "mailto:x@y" would
+	// produce "mailto:mailto:x@y" and Apple answers 403 BadJwtToken.
+	if got := NewWebPushSender("pub", "priv", "mailto:admin@example.com").subject; got != "admin@example.com" {
+		t.Fatalf("mailto: prefix must be stripped, got %q", got)
+	}
+	if got := NewWebPushSender("pub", "priv", "admin@example.com").subject; got != "admin@example.com" {
+		t.Fatalf("bare email must pass through, got %q", got)
+	}
+	if got := NewWebPushSender("pub", "priv", "https://example.com").subject; got != "https://example.com" {
+		t.Fatalf("https URL must pass through, got %q", got)
+	}
+	if got := NewWebPushSender("pub", "priv", "").subject; got == "" || len(got) >= len("mailto:")+1 && got[:7] == "mailto:" {
+		t.Fatalf("default subject must be bare (no mailto: prefix), got %q", got)
+	}
+}
+
 func TestEndpointHost(t *testing.T) {
 	if got := endpointHost("https://fcm.googleapis.com/fcm/send/abc"); got != "fcm.googleapis.com" {
 		t.Fatalf("got %q", got)

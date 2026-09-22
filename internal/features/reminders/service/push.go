@@ -40,8 +40,15 @@ type WebPushSender struct {
 }
 
 func NewWebPushSender(publicKey, privateKey, subject string) *WebPushSender {
+	// webpush-go prepends "mailto:" to Subscriber itself unless it is
+	// an https: URL (see getVAPIDAuthorizationHeader), so normalize here:
+	// a "mailto:x@y" value would otherwise become "mailto:mailto:x@y"
+	// and Apple rejects such JWTs with 403 BadJwtToken.
+	subject = strings.TrimSpace(subject)
 	if subject == "" {
-		subject = "mailto:admin@rhythm.local"
+		subject = "admin@rhythm.local"
+	} else {
+		subject = strings.TrimPrefix(subject, "mailto:")
 	}
 	return &WebPushSender{PublicKey: publicKey, privateKey: privateKey, subject: subject, ttl: 86400}
 }
