@@ -371,6 +371,16 @@ export default function SettingsScreen({
     </div>
   );
 }
+// apiFetch бросает plain-объект {status, message}, а не Error —
+// достаём настоящий текст причины, иначе видна только заглушка.
+function pushErrorMessage(e: unknown): string {
+  if (e instanceof Error && e.message) return e.message;
+  if (e && typeof e === 'object' && 'message' in e) {
+    const m = (e as { message?: unknown }).message;
+    if (typeof m === 'string' && m) return m;
+  }
+  return 'Не получилось включить уведомления';
+}
 
 function PushRow({ notify }: { notify: (k: 'ok' | 'err', t: string) => void }) {
   const [state, setState] = useState<PushState>('off');
@@ -396,7 +406,7 @@ function PushRow({ notify }: { notify: (k: 'ok' | 'err', t: string) => void }) {
       }
     } catch (e) {
       setState(await currentPushState());
-      notify('err', e instanceof Error ? e.message : 'Не получилось включить уведомления');
+      notify('err', pushErrorMessage(e));
     } finally {
       setBusy(false);
     }
