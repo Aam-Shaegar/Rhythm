@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"net/url"
 	"time"
 
 	"go.uber.org/zap"
@@ -16,12 +17,19 @@ import (
 type RemindersServiceImpl struct {
 	repo   RemindersRepository
 	sender PushSender
+	log    Logger
 }
 
 // sender may be nil (no VAPID keys configured) — scheduling and the
 // settings API keep working, only push delivery is skipped.
 func NewRemindersService(repo RemindersRepository, sender PushSender) *RemindersServiceImpl {
 	return &RemindersServiceImpl{repo: repo, sender: sender}
+}
+
+// SetLogger enables delivery diagnostics. Nil disables logging
+// (used in tests); main.go passes the app logger.
+func (s *RemindersServiceImpl) SetLogger(l Logger) {
+	s.log = l
 }
 
 func (s *RemindersServiceImpl) ScheduleForEvent(ctx context.Context, event *events_domain.Event, userID uuid.UUID) error {
@@ -161,7 +169,12 @@ func (s *RemindersServiceImpl) deliverPushes(ctx context.Context, reminders []*d
 
 	for userID, rs := range byUser {
 		subs, err := s.repo.GetSubscriptionsByUser(ctx, userID)
-		if err != nil || len(subs) == 0 {
+		if err != nil {
+			s.warn("push subscriptions lookup failed", zap.String("user_id", userID.String()), zap.Error(err))
+			continue
+		}
+		if len(subs) == 0 {
+			s.debug("no push subscriptions, skipping delivery", zap.String("user_id", userID.String()), zap.Int("reminders", len(rs)))
 			continue
 		}
 		for _, r := range rs {
@@ -169,16 +182,29 @@ func (s *RemindersServiceImpl) deliverPushes(ctx context.Context, reminders []*d
 			for _, sub := range subs {
 				if err := s.sender.Send(ctx, sub, payload); err != nil {
 					if errors.Is(err, ErrSubscriptionGone) {
+						s.debug("push endpoint expired, deleting subscription",
+							zap.String("user_id", userID.String()),
+							zap.String("endpoint_host", endpointHost(sub.Endpoint)))
 						_ = s.repo.DeleteSubscriptionByEndpoint(ctx, userID, sub.Endpoint)
+					} else {
+						s.warn("push delivery failed",
+							zap.String("user_id", userID.String()),
+							zap.String("endpoint_host", endpointHost(sub.Endpoint)),
+							zap.String("reminder_id", r.ID.String()),
+							zap.Error(err))
 					}
+				} else {
+					s.debug("push delivered",
+						zap.String("user_id", userID.String()),
+						zap.String("endpoint_host", endpointHost(sub.Endpoint)),
+						zap.String("reminder_id", r.ID.String()))
 				}
 			}
 		}
 	}
 }
 
-func (s *RemindersServiceImpl) SavePushSubscription(ctx context.Context, userID uuid.UUID, input domain.PushSubscriptionInput) error {
-	return s.repo.UpsertSubscription(ctx, &domain.PushSubscription{
+func (s *RemindersServiceImpl) SavePushSubscription(ctx context.Context, userID uuid.UUID, input domain.PushSubscriptionInput) error {	return s.repo.UpsertSubscription(ctx, &domain.PushSubscription{
 		UserID:   userID,
 		Endpoint: input.Endpoint,
 		P256DH:   input.P256DH,
@@ -188,6 +214,28 @@ func (s *RemindersServiceImpl) SavePushSubscription(ctx context.Context, userID 
 
 func (s *RemindersServiceImpl) DeletePushSubscription(ctx context.Context, userID uuid.UUID, endpoint string) error {
 	return s.repo.DeleteSubscriptionByEndpoint(ctx, userID, endpoint)
+}
+
+// endpointHost extracts "host" from a push endpoint for logs.
+// Full endpoints contain secrets, never log them whole.
+func endpointHost(endpoint string) string {
+	u, err := url.Parse(endpoint)
+	if err != nil || u.Host == "" {
+		return "unknown"
+	}
+	return u.Host
+}
+
+func (s *RemindersServiceImpl) warn(msg string, fields ...zap.Field) {
+	if s.log != nil {
+		s.log.Warn(msg, fields...)
+	}
+}
+
+func (s *RemindersServiceImpl) debug(msg string, fields ...zap.Field) {
+	if s.log != nil {
+		s.log.Debug(msg, fields...)
+	}
 }
 
 func (s *RemindersServiceImpl) PushPublicKey() string {

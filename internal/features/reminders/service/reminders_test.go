@@ -10,6 +10,7 @@ import (
 	"github.com/Aam-Shaegar/Rhythm/internal/features/reminders/domain"
 	tasks_domain "github.com/Aam-Shaegar/Rhythm/internal/features/tasks/domain"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 )
 
 type mockRemindersRepo struct {
@@ -316,4 +317,64 @@ func containsStr(s, sub string) bool {
 		}
 		return false
 	})()
+}
+
+type captureLogger struct {
+	warns []string
+	debug []string
+}
+
+func (l *captureLogger) Debug(msg string, fields ...zap.Field) { l.debug = append(l.debug, msg) }
+func (l *captureLogger) Info(msg string, fields ...zap.Field)  {}
+func (l *captureLogger) Warn(msg string, fields ...zap.Field)  { l.warns = append(l.warns, msg) }
+func (l *captureLogger) Error(msg string, fields ...zap.Field) {}
+
+func TestProcessPending_LogsDeliveryFailure(t *testing.T) {
+	uid := uuid.New()
+	repo := &subsRepo{
+		mockRemindersRepo: &mockRemindersRepo{
+			pending: []*domain.Reminder{{ID: uuid.New(), UserID: uid, EntityType: "task", Title: "X"}},
+		},
+		subs: []*domain.PushSubscription{{ID: uuid.New(), Endpoint: "https://push.example/broken"}},
+	}
+	sender := &fakeSender{fail: map[string]error{"https://push.example/broken": errors.New("connection refused")}}
+	svc := NewRemindersService(repo, sender)
+	log := &captureLogger{}
+	svc.SetLogger(log)
+
+	n, err := svc.ProcessPendingReminders(context.Background(), time.Now(), 100)
+	if err != nil || n != 1 {
+		t.Fatalf("failure must not fail batch: %d,%v", n, err)
+	}
+	if len(log.warns) != 1 || log.warns[0] != "push delivery failed" {
+		t.Fatalf("expected one delivery-failure warn, got %v", log.warns)
+	}
+	// failed (non-gone) endpoint must be kept for retry
+	if len(repo.deleted) != 0 {
+		t.Fatalf("failed endpoint must be kept, got %v", repo.deleted)
+	}
+}
+
+func TestProcessPending_NoLoggerNoPanic(t *testing.T) {
+	uid := uuid.New()
+	repo := &subsRepo{
+		mockRemindersRepo: &mockRemindersRepo{
+			pending: []*domain.Reminder{{ID: uuid.New(), UserID: uid, EntityType: "task", Title: "X"}},
+		},
+		subs: []*domain.PushSubscription{{ID: uuid.New(), Endpoint: "https://push.example/broken"}},
+	}
+	sender := &fakeSender{fail: map[string]error{"https://push.example/broken": errors.New("boom")}}
+	svc := NewRemindersService(repo, sender) // no SetLogger call
+	if _, err := svc.ProcessPendingReminders(context.Background(), time.Now(), 100); err != nil {
+		t.Fatalf("nil logger must not panic or fail: %v", err)
+	}
+}
+
+func TestEndpointHost(t *testing.T) {
+	if got := endpointHost("https://fcm.googleapis.com/fcm/send/abc"); got != "fcm.googleapis.com" {
+		t.Fatalf("got %q", got)
+	}
+	if got := endpointHost("not a url \\"); got != "unknown" {
+		t.Fatalf("got %q", got)
+	}
 }

@@ -97,6 +97,7 @@ func main() {
 		logger.Warn("VAPID keys missing: push notifications disabled (scheduling still works)")
 	}
 	remindersSvc := reminders_service.NewRemindersService(remindersRepo, pushSender)
+	remindersSvc.SetLogger(logger)
 	eventsSvc := events_service.NewEventsService(eventsRepo, remindersSvc)
 	tasksSvc := tasks_service.NewTasksService(tasksRepo, remindersSvc)
 	reportsSvc := reports_service.NewReportsService(tasksRepo, eventsRepo)
