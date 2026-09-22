@@ -325,7 +325,8 @@ input[type='color'] { width: 26px; height: 26px; border: none; border-radius: 50
 .field input:focus, .field textarea:focus, .field select:focus { border-color: var(--accent-deep); }
 .field textarea { resize: vertical; }
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-@media (max-width: 360px) { .field-row { grid-template-columns: 1fr; } }
+/* На телефонах поля даты/времени друг под другом — рядом не влезают */
+@media (max-width: 599px) { .field-row { grid-template-columns: 1fr; } }
 .field-error { font-size: 12px; font-weight: 700; color: #b3261e; }
 .form-error { font-size: 13px; font-weight: 700; color: #b3261e; background: rgba(179, 38, 30, 0.08); border-radius: 10px; padding: 9px 12px; }
 .btn-primary {
