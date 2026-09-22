@@ -14,11 +14,11 @@ import (
 )
 
 type JwtServiceImpl struct {
-	jwtRepo     JwtRepository
-	usersRepo   UsersRepository
-	cfg         *core_config.Config
-	accessTTL   time.Duration
-	refreshTTL  time.Duration
+	jwtRepo    JwtRepository
+	usersRepo  UsersRepository
+	cfg        *core_config.Config
+	accessTTL  time.Duration
+	refreshTTL time.Duration
 }
 
 func NewJwtService(jwtRepo JwtRepository, usersRepo UsersRepository, cfg *core_config.Config) *JwtServiceImpl {

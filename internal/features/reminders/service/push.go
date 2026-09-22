@@ -13,25 +13,19 @@ import (
 	"github.com/SherClockHolmes/webpush-go"
 )
 
-// pushPayload is what the service worker receives in the "push" event
-// and renders via showNotification.
 type pushPayload struct {
 	Title string `json:"title"`
 	Body  string `json:"body"`
 	URL   string `json:"url"`
 }
 
-// ErrSubscriptionGone means the push service reports the endpoint as
-// expired (HTTP 404/410) — the subscription must be deleted.
+// 404/410 от push-сервиса — подписку удалить.
 var ErrSubscriptionGone = errors.New("push subscription gone")
 
-// PushSender delivers one payload to one subscription.
-// Implementations: *WebPushSender (production), fakes in tests.
 type PushSender interface {
 	Send(ctx context.Context, sub *domain.PushSubscription, payload []byte) error
 }
 
-// WebPushSender sends RFC 8030 Web Push notifications.
 type WebPushSender struct {
 	PublicKey  string
 	privateKey string
@@ -40,10 +34,7 @@ type WebPushSender struct {
 }
 
 func NewWebPushSender(publicKey, privateKey, subject string) *WebPushSender {
-	// webpush-go prepends "mailto:" to Subscriber itself unless it is
-	// an https: URL (see getVAPIDAuthorizationHeader), so normalize here:
-	// a "mailto:x@y" value would otherwise become "mailto:mailto:x@y"
-	// and Apple rejects such JWTs with 403 BadJwtToken.
+	// webpush-go сам добавляет "mailto:", иначе Apple отвечает 403 BadJwtToken.
 	subject = strings.TrimSpace(subject)
 	if subject == "" {
 		subject = "admin@rhythm.local"
@@ -64,9 +55,7 @@ func (s *WebPushSender) Send(ctx context.Context, sub *domain.PushSubscription, 
 		TTL:             s.ttl,
 	})
 	if err != nil {
-		// webpush-go may still return the response on protocol errors.
-		// Read the push service body (Apple/Google return the real
-		// reason there, e.g. BadJwtToken) before it is lost.
+		// Тело ответа содержит реальную причину (Apple/Google).
 		if resp != nil {
 			body := drainPushRespBody(resp)
 			if resp.StatusCode == 404 || resp.StatusCode == 410 {
@@ -88,9 +77,7 @@ func (s *WebPushSender) Send(ctx context.Context, sub *domain.PushSubscription, 
 	return nil
 }
 
-// drainPushRespBody reads up to 4KB of a push service error response
-// for diagnostics and closes the body. Never logs endpoints/keys,
-// only the short reason string from the push service.
+// Тело ответа — только короткая причина, без endpoint/ключей.
 func drainPushRespBody(resp *http.Response) string {
 	if resp == nil || resp.Body == nil {
 		return ""
@@ -103,7 +90,6 @@ func drainPushRespBody(resp *http.Response) string {
 	return strings.TrimSpace(string(b))
 }
 
-// BuildPushPayload renders a reminder into a notification.
 func BuildPushPayload(rem *domain.Reminder) []byte {
 	title := rem.Title
 	if title == "" {

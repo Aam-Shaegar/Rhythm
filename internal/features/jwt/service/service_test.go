@@ -255,7 +255,6 @@ func TestRefreshTokens_Revoked(t *testing.T) {
 		t.Fatalf("GeneratePair failed: %v", err)
 	}
 
-	// Revoke the token
 	for _, t := range jwtRepo.tokens {
 		if t.UserID == userID {
 			now := time.Now().UTC()
@@ -289,7 +288,6 @@ func TestStartCleanup(t *testing.T) {
 
 	svc.StartCleanup(ctx, 10*time.Millisecond, logger)
 
-	// Wait for cleanup to run
 	time.Sleep(150 * time.Millisecond)
 
 	found := false

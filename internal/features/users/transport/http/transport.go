@@ -6,9 +6,9 @@ import (
 	core_config "github.com/Aam-Shaegar/Rhythm/internal/core/config"
 	core_http_server "github.com/Aam-Shaegar/Rhythm/internal/core/transport/http/server"
 	"github.com/Aam-Shaegar/Rhythm/internal/features/users/service"
-	"github.com/Aam-Shaegar/Rhythm/internal/features/users/transport/http/register"
-	"github.com/Aam-Shaegar/Rhythm/internal/features/users/transport/http/login"
 	"github.com/Aam-Shaegar/Rhythm/internal/features/users/transport/http/get_user"
+	"github.com/Aam-Shaegar/Rhythm/internal/features/users/transport/http/login"
+	"github.com/Aam-Shaegar/Rhythm/internal/features/users/transport/http/register"
 	"github.com/Aam-Shaegar/Rhythm/internal/features/users/transport/http/update_profile"
 )
 

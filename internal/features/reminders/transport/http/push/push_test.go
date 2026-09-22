@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
+	events_domain "github.com/Aam-Shaegar/Rhythm/internal/features/events/domain"
 	"github.com/Aam-Shaegar/Rhythm/internal/features/reminders/domain"
 	"github.com/Aam-Shaegar/Rhythm/internal/features/reminders/service"
-	events_domain "github.com/Aam-Shaegar/Rhythm/internal/features/events/domain"
 	tasks_domain "github.com/Aam-Shaegar/Rhythm/internal/features/tasks/domain"
 	"github.com/google/uuid"
 )
@@ -42,7 +42,7 @@ func (s *stubSvc) SavePushSubscription(ctx context.Context, u uuid.UUID, in doma
 func (s *stubSvc) DeletePushSubscription(ctx context.Context, u uuid.UUID, endpoint string) error {
 	return nil
 }
-func (s *stubSvc) PushPublicKey() string { return s.key }
+func (s *stubSvc) PushPublicKey() string                                              { return s.key }
 func (s *stubSvc) StartWorker(ctx context.Context, d time.Duration, l service.Logger) {}
 
 func withUser(r *http.Request, uid string) *http.Request {

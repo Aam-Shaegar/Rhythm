@@ -135,12 +135,12 @@ export default function ScheduleScreen({ notify }: { notify: (k: 'ok' | 'err', t
       } catch {
         list = await apiFetch<EventItem[]>('/events');
       }
-      // Клиентский фильтр — страховка, если сервер проигнорирует диапазон
+      // Страховка, если сервер проигнорирует диапазон.
       const f = list.filter((e) => {
         const s = new Date(e.start_at).getTime();
         return s >= range.from.getTime() && s < range.to.getTime();
       });
-      // Если фильтр всё вырезал, а сервер вернул мало — показываем как есть при пустом диапазоне
+      // Фильтр всё вырезал, а сервер что-то вернул — показываем как есть.
       setEvents(list.length > 0 && f.length === 0 ? list : f);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Ошибка загрузки');

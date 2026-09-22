@@ -33,16 +33,14 @@ func (h *UpdateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// In a full implementation, you'd save to a user settings table
-	// For now, just return the updated settings
 	settings := domain.ReminderSettings{
-		EventReminders:  derefBool(input.EventReminders, true),
-		TaskReminders:   derefBool(input.TaskReminders, true),
-		EventBefore15m:  derefBool(input.EventBefore15m, true),
-		EventBefore1h:   derefBool(input.EventBefore1h, true),
-		EventBefore24h:  derefBool(input.EventBefore24h, true),
-		TaskBefore1h:    derefBool(input.TaskBefore1h, true),
-		TaskBefore24h:   derefBool(input.TaskBefore24h, true),
+		EventReminders: derefBool(input.EventReminders, true),
+		TaskReminders:  derefBool(input.TaskReminders, true),
+		EventBefore15m: derefBool(input.EventBefore15m, true),
+		EventBefore1h:  derefBool(input.EventBefore1h, true),
+		EventBefore24h: derefBool(input.EventBefore24h, true),
+		TaskBefore1h:   derefBool(input.TaskBefore1h, true),
+		TaskBefore24h:  derefBool(input.TaskBefore24h, true),
 	}
 
 	respHandler := core_response.NewHTTPResponseHandler(nil, w)

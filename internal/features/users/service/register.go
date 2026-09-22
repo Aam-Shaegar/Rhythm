@@ -11,13 +11,13 @@ import (
 	"github.com/Aam-Shaegar/Rhythm/internal/features/users/domain"
 	"github.com/Aam-Shaegar/Rhythm/internal/features/users/domain/dtos"
 	"github.com/Aam-Shaegar/Rhythm/internal/features/users/repository/postgres"
-	"golang.org/x/crypto/bcrypt"
 	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type UsersServiceImpl struct {
-	repo     postgres.UsersRepository
-	jwtSvc   service.JwtService
+	repo           postgres.UsersRepository
+	jwtSvc         service.JwtService
 	passwordHasher PasswordHasher
 }
 

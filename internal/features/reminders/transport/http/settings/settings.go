@@ -27,16 +27,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// For now, return default settings
-	// In a full implementation, you'd fetch from a user settings table
 	settings := domain.ReminderSettings{
-		EventReminders:  true,
-		TaskReminders:   true,
-		EventBefore15m:  true,
-		EventBefore1h:   true,
-		EventBefore24h:  true,
-		TaskBefore1h:    true,
-		TaskBefore24h:   true,
+		EventReminders: true,
+		TaskReminders:  true,
+		EventBefore15m: true,
+		EventBefore1h:  true,
+		EventBefore24h: true,
+		TaskBefore1h:   true,
+		TaskBefore24h:  true,
 	}
 
 	respHandler := core_response.NewHTTPResponseHandler(nil, w)

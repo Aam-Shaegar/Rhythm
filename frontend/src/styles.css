@@ -23,7 +23,7 @@ body {
 button { font-family: inherit; }
 .page-label { display: none; }
 
-/* ===== APP SHELL: всегда 100% экрана, без телефонной рамки ===== */
+/* App shell: всегда 100% экрана */
 .phone {
   position: relative;
   width: 100%;
@@ -47,7 +47,6 @@ button { font-family: inherit; }
   transition: background 0.5s ease;
 }
 
-/* THEME TOKENS */
 .phone-screen[data-theme='forest'] {
   --accent: #6f9271; --accent-deep: #3d5a41; --accent-soft: #c7dcc4;
   --surface: rgba(255, 255, 255, 0.52); --surface-strong: rgba(255, 255, 255, 0.72);
@@ -82,8 +81,7 @@ button { font-family: inherit; }
 .bg-illustration img {
   width: 100%; height: 100%;
   object-fit: cover; object-position: center;
-  /* PNG тёмные со светлыми дудлами: screen растворяет подложку,
-     рисунки остаются поверх светлого градиента темы */
+  /* Тёмные PNG со светлыми дудлами: screen растворяет подложку */
   mix-blend-mode: screen;
   filter: saturate(1.15);
 }
@@ -126,7 +124,6 @@ button { font-family: inherit; }
 .sched-body { padding-bottom: calc(120px + env(safe-area-inset-bottom)); }
 .boot { position: relative; z-index: 2; padding: 60px 20px; text-align: center; color: var(--text); font-weight: 700; }
 
-/* pills, nav, zoom */
 .pill-toggle { display: inline-flex; background: var(--surface); border-radius: 999px; padding: 3px; backdrop-filter: blur(10px); }
 .pill-toggle button {
   border: none; background: transparent; font-size: 12.5px; font-weight: 700;
@@ -163,7 +160,6 @@ input[type='range'].zoom::-moz-range-thumb {
 }
 .search::placeholder { color: var(--text-soft); opacity: 0.7; }
 
-/* date strip */
 .date-strip { display: flex; gap: 8px; padding: 0 22px 14px; overflow-x: auto; scrollbar-width: none; }
 .date-strip::-webkit-scrollbar { display: none; }
 .date-chip {
@@ -176,7 +172,6 @@ input[type='range'].zoom::-moz-range-thumb {
 .date-chip.active { background: var(--accent-deep); color: #fff; }
 .date-chip.today:not(.active) { border-color: var(--accent-deep); }
 
-/* calendar grid */
 .cal-wrap { display: flex; padding: 0 14px 0 22px; }
 .hour-col { position: relative; width: 42px; flex-shrink: 0; }
 .hour-label { position: absolute; left: 0; transform: translateY(-50%); font-size: 10px; font-weight: 700; color: var(--text-soft); opacity: 0.7; }
@@ -208,7 +203,6 @@ input[type='range'].zoom::-moz-range-thumb {
 .now-line { position: absolute; left: 0; right: 0; height: 2px; background: #d1495b; z-index: 3; pointer-events: none; }
 .now-line::before { content: ''; position: absolute; left: -4px; top: -3px; width: 8px; height: 8px; border-radius: 50%; background: #d1495b; }
 
-/* tasks */
 .task-card {
   display: flex; align-items: flex-start; gap: 12px; background: var(--surface);
   border-radius: 16px; padding: 13px 14px; margin-bottom: 10px; backdrop-filter: blur(8px);
@@ -234,7 +228,6 @@ input[type='range'].zoom::-moz-range-thumb {
 }
 .fab:hover { filter: brightness(1.08); }
 
-/* reports */
 .donut-wrap { display: flex; flex-direction: column; align-items: center; padding: 14px 0 22px; }
 .donut {
   width: 158px; height: 158px; border-radius: 50%;
@@ -256,7 +249,6 @@ input[type='range'].zoom::-moz-range-thumb {
 .period-bar span { display: block; height: 100%; background: var(--accent-deep); border-radius: 3px; }
 .period-num { text-align: right; color: var(--text-soft); }
 
-/* settings */
 .settings-section { margin-bottom: 20px; }
 .settings-label { font-size: 11.5px; font-weight: 700; color: var(--text-soft); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.3px; opacity: 0.7; }
 .profile-row { display: flex; align-items: center; gap: 12px; background: var(--surface); border-radius: 16px; padding: 14px; }
@@ -281,13 +273,11 @@ input[type='range'].zoom::-moz-range-thumb {
 .theme-name { font-size: 12px; font-weight: 700; color: var(--text); display: block; }
 .custom-controls { margin-top: 10px; display: none; gap: 8px; flex-wrap: wrap; }
 .custom-controls.show { display: flex; flex-direction: column; flex-wrap: nowrap; }
-/* Строка выбора цвета: подпись слева, кружок справа — как switch-row */
 .color-row {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
   background: var(--surface-strong); border-radius: 12px; padding: 9px 12px;
   font-size: 12.5px; font-weight: 700; color: var(--text); cursor: pointer;
 }
-/* Превью загруженной картинки + ровный ряд кнопок */
 .photo-preview { width: 100%; height: 110px; object-fit: cover; border-radius: 12px; display: block; }
 .photo-row { display: flex; gap: 8px; }
 .photo-row > * { flex: 1; }
@@ -310,7 +300,6 @@ input[type='color'] { width: 26px; height: 26px; border: none; border-radius: 50
   font-family: inherit; font-weight: 700; font-size: 13.5px; border: none; cursor: pointer; margin-top: 6px;
 }
 
-/* forms, buttons, modal, toasts */
 .form-card { background: var(--surface); border-radius: 18px; padding: 18px; display: flex; flex-direction: column; gap: 12px; backdrop-filter: blur(8px); }
 .field { display: flex; flex-direction: column; gap: 6px; font-size: 12px; font-weight: 700; color: var(--text); }
 .field input, .field textarea, .field select {
@@ -318,8 +307,7 @@ input[type='color'] { width: 26px; height: 26px; border: none; border-radius: 50
   background: var(--surface-strong); color: var(--text);
   font-family: inherit; font-size: 16px; font-weight: 600; outline: none; width: 100%;
 }
-/* Одинаковая высота у названия, дат и селектов: нативные datetime/select
-   рисуются со своей высотой, поэтому фиксируем её явно */
+/* Нативные datetime/select рисуются со своей высотой — фиксируем явно */
 .field input, .field select { min-height: 46px; }
 .field input[type='datetime-local'], .field input[type='date'], .field input[type='time'] {
   -webkit-appearance: none; appearance: none; min-height: 46px; line-height: 1.4;
@@ -381,7 +369,6 @@ input[type='color'] { width: 26px; height: 26px; border: none; border-radius: 50
 .spinner { width: 30px; height: 30px; border-radius: 50%; border: 3px solid var(--surface-strong); border-top-color: var(--accent-deep); animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* bottom switcher */
 .switcher-wrap { position: absolute; left: 0; right: 0; bottom: max(22px, env(safe-area-inset-bottom)); z-index: 6; display: flex; justify-content: center; pointer-events: none; }
 .switcher {
   pointer-events: auto; position: relative; display: flex; gap: 4px; background: var(--surface-strong);
@@ -398,7 +385,6 @@ input[type='color'] { width: 26px; height: 26px; border: none; border-radius: 50
 .switcher svg { width: 21px; height: 21px; stroke: var(--text); opacity: 0.55; transition: 0.3s; }
 .switcher button.active svg { opacity: 1; stroke: #fff; }
 
-/* ===== shared: bell, dashboard, notifications (mobile + desktop) ===== */
 .screen-sub { font-size: 12.5px; font-weight: 600; color: var(--text-soft); text-transform: capitalize; margin-top: 2px; }
 .link-btn { border: none; background: transparent; cursor: pointer; color: var(--accent-deep); font-size: 12.5px; font-weight: 800; white-space: nowrap; }
 .row-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 14px 0 10px; }
@@ -456,7 +442,7 @@ input[type='color'] { width: 26px; height: 26px; border: none; border-radius: 50
 .main-col { display: contents; }
 .avatar.sm { width: 30px; height: 30px; font-size: 11px; }
 
-/* ===== desktop ≥900px (ТЗ U.4: широкие экраны) ===== */
+/* Desktop ≥900px */
 @media (min-width: 900px) {
   .phone-screen { display: flex; }
   .status-bar, .switcher-wrap { display: none; }
@@ -526,7 +512,6 @@ input[type='color'] { width: 26px; height: 26px; border: none; border-radius: 50
   }
   [data-screen='calendar'] .screen-head { max-width: none; }
 
-  /* dashboard: две колонки */
   .dash-cols { display: grid; grid-template-columns: 1.2fr 1fr; gap: 18px; align-items: start; }
 
   .modal-backdrop { align-items: center; padding: 24px; }
@@ -535,12 +520,11 @@ input[type='color'] { width: 26px; height: 26px; border: none; border-radius: 50
   .notif-drawer { border-radius: 0 20px 20px 0; }
 }
 
-/* prod a11y: уважение к reduced motion */
+/* a11y: reduced motion */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
 
-/* ===== auth split (desktop): бренд-панель + форма ===== */
 .auth-hero { display: none; }
 @media (min-width: 900px) {
   [data-screen='auth'] .screen-head { max-width: 1080px; margin: 0 auto; width: 100%; }
@@ -581,7 +565,6 @@ input[type='color'] { width: 26px; height: 26px; border: none; border-radius: 50
   }
 }
 
-/* ===== tablet 600–899px: модалки по центру, мобильная навигация ===== */
 @media (min-width: 600px) and (max-width: 899px) {
   .modal { max-width: 520px; margin: 0 auto; border-radius: 22px; }
   .modal-backdrop { align-items: center; padding: 24px; }

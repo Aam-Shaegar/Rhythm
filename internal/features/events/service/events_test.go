@@ -64,7 +64,6 @@ func (m *mockEventsRepo) Update(ctx context.Context, event *domain.Event) error 
 	}
 	m.events[event.ID] = event
 
-	// Update in byUser
 	for i, e := range m.byUser[event.UserID] {
 		if e.ID == event.ID {
 			m.byUser[event.UserID][i] = event
@@ -81,7 +80,6 @@ func (m *mockEventsRepo) Delete(ctx context.Context, id uuid.UUID) error {
 	}
 	delete(m.events, id)
 
-	// Remove from byUser
 	userEvents := m.byUser[event.UserID]
 	for i, e := range userEvents {
 		if e.ID == id {
@@ -262,13 +260,13 @@ func TestGetEvent_WrongUser(t *testing.T) {
 	otherUserID := uuid.New()
 	eventID := uuid.New()
 	event := &domain.Event{
-		ID:          eventID,
-		UserID:      userID,
-		Title:       "Test Event",
-		StartAt:     time.Now().Add(time.Hour),
-		EndAt:       time.Now().Add(2 * time.Hour),
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		ID:        eventID,
+		UserID:    userID,
+		Title:     "Test Event",
+		StartAt:   time.Now().Add(time.Hour),
+		EndAt:     time.Now().Add(2 * time.Hour),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
 	}
 	repo.Create(context.Background(), event)
 
@@ -290,22 +288,22 @@ func TestListEvents_Success(t *testing.T) {
 	now := time.Now()
 
 	event1 := &domain.Event{
-		ID:          uuid.New(),
-		UserID:      userID,
-		Title:       "Event 1",
-		StartAt:     now.Add(time.Hour),
-		EndAt:       now.Add(2 * time.Hour),
-		CreatedAt:   now,
-		UpdatedAt:   now,
+		ID:        uuid.New(),
+		UserID:    userID,
+		Title:     "Event 1",
+		StartAt:   now.Add(time.Hour),
+		EndAt:     now.Add(2 * time.Hour),
+		CreatedAt: now,
+		UpdatedAt: now,
 	}
 	event2 := &domain.Event{
-		ID:          uuid.New(),
-		UserID:      userID,
-		Title:       "Event 2",
-		StartAt:     now.Add(3 * time.Hour),
-		EndAt:       now.Add(4 * time.Hour),
-		CreatedAt:   now,
-		UpdatedAt:   now,
+		ID:        uuid.New(),
+		UserID:    userID,
+		Title:     "Event 2",
+		StartAt:   now.Add(3 * time.Hour),
+		EndAt:     now.Add(4 * time.Hour),
+		CreatedAt: now,
+		UpdatedAt: now,
 	}
 	repo.Create(context.Background(), event1)
 	repo.Create(context.Background(), event2)
@@ -330,22 +328,22 @@ func TestListEvents_WithDateFilter(t *testing.T) {
 	now := time.Now()
 
 	event1 := &domain.Event{
-		ID:          uuid.New(),
-		UserID:      userID,
-		Title:       "Event 1",
-		StartAt:     now.Add(time.Hour),
-		EndAt:       now.Add(2 * time.Hour),
-		CreatedAt:   now,
-		UpdatedAt:   now,
+		ID:        uuid.New(),
+		UserID:    userID,
+		Title:     "Event 1",
+		StartAt:   now.Add(time.Hour),
+		EndAt:     now.Add(2 * time.Hour),
+		CreatedAt: now,
+		UpdatedAt: now,
 	}
 	event2 := &domain.Event{
-		ID:          uuid.New(),
-		UserID:      userID,
-		Title:       "Event 2",
-		StartAt:     now.Add(24 * time.Hour),
-		EndAt:       now.Add(25 * time.Hour),
-		CreatedAt:   now,
-		UpdatedAt:   now,
+		ID:        uuid.New(),
+		UserID:    userID,
+		Title:     "Event 2",
+		StartAt:   now.Add(24 * time.Hour),
+		EndAt:     now.Add(25 * time.Hour),
+		CreatedAt: now,
+		UpdatedAt: now,
 	}
 	repo.Create(context.Background(), event1)
 	repo.Create(context.Background(), event2)
@@ -420,13 +418,13 @@ func TestUpdateEvent_WrongUser(t *testing.T) {
 	otherUserID := uuid.New()
 	eventID := uuid.New()
 	event := &domain.Event{
-		ID:          eventID,
-		UserID:      userID,
-		Title:       "Test Event",
-		StartAt:     time.Now().Add(time.Hour),
-		EndAt:       time.Now().Add(2 * time.Hour),
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		ID:        eventID,
+		UserID:    userID,
+		Title:     "Test Event",
+		StartAt:   time.Now().Add(time.Hour),
+		EndAt:     time.Now().Add(2 * time.Hour),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
 	}
 	repo.Create(context.Background(), event)
 
@@ -451,13 +449,13 @@ func TestDeleteEvent_Success(t *testing.T) {
 	userID := uuid.New()
 	eventID := uuid.New()
 	event := &domain.Event{
-		ID:          eventID,
-		UserID:      userID,
-		Title:       "Test Event",
-		StartAt:     time.Now().Add(time.Hour),
-		EndAt:       time.Now().Add(2 * time.Hour),
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		ID:        eventID,
+		UserID:    userID,
+		Title:     "Test Event",
+		StartAt:   time.Now().Add(time.Hour),
+		EndAt:     time.Now().Add(2 * time.Hour),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
 	}
 	repo.Create(context.Background(), event)
 
@@ -466,7 +464,6 @@ func TestDeleteEvent_Success(t *testing.T) {
 		t.Fatalf("DeleteEvent failed: %v", err)
 	}
 
-	// Verify deleted
 	_, err = svc.GetEvent(context.Background(), userID, eventID)
 	if err == nil {
 		t.Fatal("expected not found after delete")
@@ -485,13 +482,13 @@ func TestDeleteEvent_WrongUser(t *testing.T) {
 	otherUserID := uuid.New()
 	eventID := uuid.New()
 	event := &domain.Event{
-		ID:          eventID,
-		UserID:      userID,
-		Title:       "Test Event",
-		StartAt:     time.Now().Add(time.Hour),
-		EndAt:       time.Now().Add(2 * time.Hour),
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		ID:        eventID,
+		UserID:    userID,
+		Title:     "Test Event",
+		StartAt:   time.Now().Add(time.Hour),
+		EndAt:     time.Now().Add(2 * time.Hour),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
 	}
 	repo.Create(context.Background(), event)
 

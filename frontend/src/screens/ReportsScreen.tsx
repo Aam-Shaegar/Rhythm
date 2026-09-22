@@ -56,13 +56,6 @@ export default function ReportsScreen() {
     void load();
   }, [load]);
 
-  const totals = useMemo(() => {
-    if (mode === 'day' || !daily) return null;
-    return null;
-  }, [mode, daily]);
-
-  void totals;
-
   const agg = useMemo(() => {
     if (mode !== 'period' || period.length === 0) return null;
     const total = period.reduce((s, r) => s + r.total_tasks, 0);

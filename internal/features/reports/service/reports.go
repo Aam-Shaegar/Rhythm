@@ -4,11 +4,11 @@ import (
 	"context"
 	"time"
 
+	events_domain "github.com/Aam-Shaegar/Rhythm/internal/features/events/domain"
+	events_postgres "github.com/Aam-Shaegar/Rhythm/internal/features/events/repository/postgres"
 	"github.com/Aam-Shaegar/Rhythm/internal/features/reports/domain"
 	tasks_domain "github.com/Aam-Shaegar/Rhythm/internal/features/tasks/domain"
-	events_domain "github.com/Aam-Shaegar/Rhythm/internal/features/events/domain"
 	tasks_postgres "github.com/Aam-Shaegar/Rhythm/internal/features/tasks/repository/postgres"
-	events_postgres "github.com/Aam-Shaegar/Rhythm/internal/features/events/repository/postgres"
 	"github.com/google/uuid"
 )
 
@@ -29,9 +29,9 @@ func (s *ReportsServiceImpl) GetDailyReport(ctx context.Context, userID uuid.UUI
 	endOfDay := startOfDay.Add(24 * time.Hour)
 
 	tasks, err := s.tasksRepo.GetByUserID(ctx, tasks_domain.TaskFilter{
-		UserID:    userID,
-		DateFrom:  &startOfDay,
-		DateTo:    &endOfDay,
+		UserID:   userID,
+		DateFrom: &startOfDay,
+		DateTo:   &endOfDay,
 	})
 	if err != nil {
 		return nil, err
@@ -60,11 +60,11 @@ func (s *ReportsServiceImpl) GetDailyReport(ctx context.Context, userID uuid.UUI
 	}
 
 	return &domain.DailyReport{
-		Date:            date,
-		TotalTasks:      totalTasks,
-		CompletedTasks:  completedTasks,
-		CompletionPct:   completionPct,
-		EventsCount:     len(events),
+		Date:           date,
+		TotalTasks:     totalTasks,
+		CompletedTasks: completedTasks,
+		CompletionPct:  completionPct,
+		EventsCount:    len(events),
 	}, nil
 }
 

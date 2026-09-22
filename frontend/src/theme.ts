@@ -30,7 +30,6 @@ export function saveThemeName(t: ThemeName): void {
 }
 
 export function loadArt(): boolean {
-  // По умолчанию рисунки включены.
   return localStorage.getItem(THEME_ART_KEY) !== '0';
 }
 
@@ -46,7 +45,7 @@ export function loadCustom(): CustomPalette {
       if (p.accent && p.bgA && p.bgB && p.text) return p as CustomPalette;
     }
   } catch {
-    // игнорируем битый JSON, ниже — дефолт + миграция со старого ключа
+    // Битый JSON → дефолт и миграция со старого ключа ниже.
   }
   const legacy = localStorage.getItem(THEME_COLOR_KEY);
   if (legacy && /^#[0-9a-fA-F]{6}$/.test(legacy)) {
@@ -65,8 +64,6 @@ export function loadPhoto(): string | null {
   return localStorage.getItem(THEME_PHOTO_KEY);
 }
 
-// ---------- color utils ----------
-
 function clampHex(h: string): string | null {
   return /^#[0-9a-fA-F]{6}$/.test(h) ? h : null;
 }
@@ -80,7 +77,7 @@ function toHex(r: number, g: number, b: number): string {
   return `#${c(r)}${c(g)}${c(b)}`;
 }
 
-/** Смешивание двух hex-цветов: ratio=0 → a, ratio=1 → b. */
+// Смешивание hex: ratio=0→a, 1→b.
 export function mixHex(a: string, b: string, ratio: number): string {
   const pa = clampHex(a) ?? '#808080';
   const pb = clampHex(b) ?? '#808080';
@@ -90,7 +87,7 @@ export function mixHex(a: string, b: string, ratio: number): string {
   return toHex(r1 + (r2 - r1) * t, g1 + (g2 - g1) * t, b1 + (b2 - b1) * t);
 }
 
-/** Относительная яркость 0..1 (для выбора светлых/тёмных поверхностей). */
+// Относительная яркость 0..1 для выбора поверхностей.
 export function luminance(h: string): number {
   const [r, g, b] = toRgb(clampHex(h) ?? '#808080').map((v) => {
     const s = v / 255;
@@ -98,8 +95,6 @@ export function luminance(h: string): number {
   });
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
-
-// ---------- применение к DOM ----------
 
 export function applyThemeToDom(): void {
   const screen = document.getElementById('phoneScreen');
@@ -109,7 +104,6 @@ export function applyThemeToDom(): void {
   screen.setAttribute('data-theme', theme);
   screen.classList.toggle('no-art', !art);
 
-  // Сбрасываем все кастомные оверрайды, затем применяем нужные.
   for (const v of ['--accent', '--accent-deep', '--bg-a', '--bg-b', '--text', '--text-soft', '--surface', '--surface-strong']) {
     screen.style.removeProperty(v);
   }
@@ -121,8 +115,7 @@ export function applyThemeToDom(): void {
     screen.style.setProperty('--accent', p.accent);
     screen.style.setProperty('--accent-deep', p.accent);
     if (photo) {
-      // Поверх фото текст всегда светлый (правило .has-photo в CSS) —
-      // палитру фона/текста не трогаем, чтобы не убить читаемость.
+      // Поверх фото текст светлый (.has-photo): палитру не трогаем.
       screen.classList.add('has-photo');
       const el = document.getElementById('customPhoto');
       if (el) el.style.backgroundImage = `url(${photo})`;

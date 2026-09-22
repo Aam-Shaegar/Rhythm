@@ -54,7 +54,6 @@ function Shell() {
   const [clock, setClock] = useState(() => new Date());
   const [notices, setNotices] = useState<Notice[]>([]);
   const [notifOpen, setNotifOpen] = useState(false);
-  const barRef = useRef<HTMLDivElement>(null);
   const btnRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [highlight, setHighlight] = useState({ left: 6, width: 52 });
 
@@ -66,7 +65,7 @@ function Shell() {
 
   const go = useCallback((t: Tab) => setTab(t), []);
 
-  // ---- derived notifications (F.11/U.14: уведомления в интерфейсе) ----
+  // Уведомления в интерфейсе.
   const loadNotices = useCallback(async () => {
     try {
       const from = new Date();
@@ -81,7 +80,7 @@ function Shell() {
       ]);
       setNotices(deriveNotices(tasks, events, settings));
     } catch {
-      // Тихо: бейдж просто не покажем, экраны сами отображают свои ошибки (U.3 там).
+      // Тихо: бейдж не покажем, ошибки видны на экранах.
     }
   }, []);
 
@@ -92,7 +91,7 @@ function Shell() {
     return () => clearInterval(t);
   }, [user, loadNotices, tab]);
 
-  // Единственное место применения темы к DOM: имя, флаг рисунков, палитра custom.
+  // Единственное место применения темы к DOM.
   useEffect(() => {
     applyThemeToDom();
   }, [theme, artOn, themeRev]);
@@ -187,7 +186,6 @@ function Shell() {
         <div className="bg-custom-photo" id="customPhoto" />
         <div className="bg-custom-overlay" />
 
-        {/* Desktop sidebar (U.4: широкие экраны) */}
         <aside className="sidebar" aria-label="Навигация">
           <div className="brand">
             <span className="brand-mark" aria-hidden="true">
@@ -231,7 +229,6 @@ function Shell() {
         </aside>
 
         <div className="main-col">
-          {/* Desktop topbar */}
           <header className="topbar">
             <div className="topbar-date">
               {dateLabel} · {clockLabel}
@@ -247,7 +244,6 @@ function Shell() {
             </div>
           </header>
 
-          {/* Mobile status bar */}
           <div className="status-bar">
             <span>{clockLabel}</span>
             <span>Ритм</span>
@@ -271,9 +267,8 @@ function Shell() {
             )}
           </div>
 
-          {/* Mobile bottom switcher */}
           <div className="switcher-wrap">
-            <div className="switcher" ref={barRef} role="tablist" aria-label="Разделы">
+            <div className="switcher" role="tablist" aria-label="Разделы">
               <div
                 className="highlight"
                 aria-hidden="true"

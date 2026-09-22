@@ -7,8 +7,8 @@ import (
 	"go.uber.org/zap"
 
 	events_domain "github.com/Aam-Shaegar/Rhythm/internal/features/events/domain"
-	tasks_domain "github.com/Aam-Shaegar/Rhythm/internal/features/tasks/domain"
 	"github.com/Aam-Shaegar/Rhythm/internal/features/reminders/domain"
+	tasks_domain "github.com/Aam-Shaegar/Rhythm/internal/features/tasks/domain"
 	"github.com/google/uuid"
 )
 

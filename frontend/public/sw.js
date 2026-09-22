@@ -1,5 +1,4 @@
-/* Ритм — service worker: только Web Push. Без кэширования страниц,
-   чтобы свежие сборки прилетали сами ( dist fingerprinted ). */
+/* Только Web Push, без кэширования: свежие сборки прилетают сами. */
 
 self.addEventListener('push', (event) => {
   let data = { title: 'Ритм', body: 'У вас новое напоминание', url: '/' };

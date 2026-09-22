@@ -36,12 +36,8 @@ func TestUpdateProfile_ConflictEmail(t *testing.T) {
 	svc := NewUsersService(repo, newMockJwtService())
 	a, _ := svc.Register(context.Background(), dtos.RegisterInput{Username: "alice", Email: "alice@ex.com", Password: "password123"})
 	_, _ = svc.Register(context.Background(), dtos.RegisterInput{Username: "bob", Email: "bob@ex.com", Password: "password123"})
-	bobEmail := "alice@ex.com"
-	_, err := svc.UpdateProfile(context.Background(), a.User.ID, dtos.UpdateProfileInput{Email: &bobEmail})
-	// updating alice to bob's... wait bob is second; alice taking bob's email? use bob's email:
-	_ = bobEmail
 	bEmail := "bob@ex.com"
-	_, err = svc.UpdateProfile(context.Background(), a.User.ID, dtos.UpdateProfileInput{Email: &bEmail})
+	_, err := svc.UpdateProfile(context.Background(), a.User.ID, dtos.UpdateProfileInput{Email: &bEmail})
 	if !errors.Is(err, core_errors.ErrConflict) {
 		t.Fatalf("email conflict should be Conflict, got %v", err)
 	}

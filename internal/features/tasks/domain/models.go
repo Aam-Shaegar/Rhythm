@@ -7,18 +7,18 @@ import (
 )
 
 type Task struct {
-	ID              uuid.UUID
-	UserID          uuid.UUID
-	Title           string
-	Description     *string
-	DueAt           time.Time
-	IsCompleted     bool
-	CompletedAt     *time.Time
-	RecurrenceType  *RecurrenceType
-	RecurrenceEnd   *time.Time
-	ParentTaskID    *uuid.UUID
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
+	ID             uuid.UUID
+	UserID         uuid.UUID
+	Title          string
+	Description    *string
+	DueAt          time.Time
+	IsCompleted    bool
+	CompletedAt    *time.Time
+	RecurrenceType *RecurrenceType
+	RecurrenceEnd  *time.Time
+	ParentTaskID   *uuid.UUID
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }
 
 type RecurrenceType string

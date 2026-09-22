@@ -62,7 +62,6 @@ func main() {
 
 	logger.Debug("application time zone", zap.Any("zone", time.Local))
 
-	// Postgres
 	logger.Debug("initializing postgres connection pool")
 	pool, err := core_pgx_pool.NewConnectionPool(core_pgx_pool.NewConfigMust(), ctx)
 	if err != nil {
@@ -70,7 +69,6 @@ func main() {
 	}
 	defer pool.Close()
 
-	// Redis
 	logger.Debug("initializing redis client")
 	redisClient := redis.NewClient(&redis.Options{
 		Addr: cfg.RedisAddr,
@@ -80,14 +78,12 @@ func main() {
 	}
 	defer redisClient.Close()
 
-	// Repositories
 	jwtRepo := jwt_repository_postgres.NewJwtRepository(pool)
 	usersRepo := users_repository_postgres.NewUsersRepository(pool)
 	eventsRepo := events_repository_postgres.NewEventsRepository(pool)
 	tasksRepo := tasks_repository_postgres.NewTasksRepository(pool)
 	remindersRepo := reminders_repository_postgres.NewRemindersRepository(pool)
 
-	// Services - create in order of dependency
 	jwtSvc := jwt_service.NewJwtService(jwtRepo, usersRepo, cfg)
 	usersSvc := users_service.NewUsersService(usersRepo, jwtSvc)
 	var pushSender reminders_service.PushSender
@@ -102,7 +98,6 @@ func main() {
 	tasksSvc := tasks_service.NewTasksService(tasksRepo, remindersSvc)
 	reportsSvc := reports_service.NewReportsService(tasksRepo, eventsRepo)
 
-	// HTTP Handlers
 	jwtHandler := jwt_transport_http.NewJwtHTTPHandler(jwtSvc, cfg.JwtRefreshTTL, cfg.SecureRefreshCookie)
 	usersHandler := users_transport_http.NewUsersHTTPHandler(usersSvc, cfg)
 	eventsHandler := events_transport_http.NewEventsHTTPHandler(eventsSvc)
@@ -110,16 +105,12 @@ func main() {
 	reportsHandler := reports_transport_http.NewReportsHTTPHandler(reportsSvc)
 	remindersHandler := reminders_transport_http.NewRemindersHTTPHandler(remindersSvc)
 
-	// Auth middleware
 	authMiddleware := core_http_middleware.Auth(jwtSvc.ValidateAccessToken)
 
-	// Router
 	apiRouter := core_http_server.NewAPIVersionRouter(core_http_server.ApiVersion1)
 
-	// Public routes
 	publicRoutes := jwtHandler.Routes()
 	publicRoutes = append(publicRoutes, usersHandler.Routes()...)
-	// Filter: only register and login are public
 	filteredPublicRoutes := make([]core_http_server.Route, 0)
 	for _, route := range publicRoutes {
 		if route.Path == "/auth/register" || route.Path == "/auth/login" || route.Path == "/auth/refresh" {
@@ -128,7 +119,6 @@ func main() {
 	}
 	apiRouter.RegisterRoutes(filteredPublicRoutes...)
 
-	// Protected routes
 	protectedRoutes := []core_http_server.Route{}
 	for _, route := range usersHandler.Routes() {
 		if route.Path != "/auth/register" && route.Path != "/auth/login" {
@@ -154,7 +144,6 @@ func main() {
 	}
 	apiRouter.RegisterRoutes(protectedRoutes...)
 
-	// HTTP Server
 	logger.Debug("initializing http server")
 	httpServer := core_http_server.NewHTTPServer(
 		core_http_server.NewConfigMust(),
@@ -168,7 +157,6 @@ func main() {
 	httpServer.RegisterAPIRouters(apiRouter)
 	httpServer.RegisterHealth()
 
-	// Background workers
 	go jwtSvc.StartCleanup(ctx, time.Hour, logger)
 	go tasksSvc.GenerateRecurringTasks(ctx, time.Now().Add(30*24*time.Hour))
 	go remindersSvc.StartWorker(ctx, time.Minute, logger)

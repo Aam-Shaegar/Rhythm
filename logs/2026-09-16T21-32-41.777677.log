@@ -1,3 +1,0 @@
-2026-09-17T00:32:41.777780	DEBUG	server/main.go:63	application time zone	{"zone": "Europe/Moscow"}
-2026-09-17T00:32:41.777934	DEBUG	server/main.go:66	initializing postgres connection pool
-2026-09-17T00:32:41.780613	FATAL	server/main.go:69	failed to init postgres connection pool	{"error": "pgxpool ping: failed to connect to `user=rhytm database=rhytm`:\n\t[::1]:5432 (localhost): dial error: dial tcp [::1]:5432: connect: connection refused\n\t127.0.0.1:5432 (localhost): dial error: dial tcp 127.0.0.1:5432: connect: connection refused"}

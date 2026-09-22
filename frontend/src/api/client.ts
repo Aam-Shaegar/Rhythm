@@ -6,8 +6,7 @@ declare global {
   }
 }
 
-// Precedence: runtime config.js (deploy-time; empty string = same origin)
-// → Vite build env (dev) → localhost fallback.
+// Precedence: runtime config.js → Vite env → localhost fallback.
 function resolveApiUrl(): string {
   const rt = window.__ENV__;
   if (rt && typeof rt.API_URL === 'string') {
@@ -40,14 +39,8 @@ export function clearTokens(): void {
   localStorage.removeItem(REFRESH_KEY);
 }
 
-// Клиентский страж времени отклика (ТЗ R.1: стандартные операции — до 2 c,
-// отчёты — до 5 c на сервере). 12 c с запасом на сеть; при превышении —
-// понятная ошибка с рекомендацией (ТЗ U.3), без бесконечного спиннера.
+// 12 c с запасом на сеть; при превышении — понятная ошибка без вечного спиннера.
 const REQUEST_TIMEOUT_MS = 12000;
-
-export function isTimeoutError(e: unknown): boolean {
-  return e instanceof Error && e.name === 'TimeoutError';
-}
 
 function timeoutMessage(): Error {
   const err = new Error('Превышено время ожидания ответа (12 c). Проверьте соединение с интернетом и повторите.');
@@ -146,5 +139,3 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}, retry = 
   if (!res.ok) throw toApiError(res.status, body);
   return body as T;
 }
-
-export { API_URL };

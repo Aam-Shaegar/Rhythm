@@ -35,8 +35,7 @@ func (rw *ResponseWriter) GetStatusCode() int {
 	return rw.statusCode
 }
 
-// Hijack реализует http.Hijacker — необходим для WebSocket upgrade.
-// Если нижележащий ResponseWriter не поддерживает Hijack — возвращаем ошибку.
+// Hijack нужен для WebSocket upgrade.
 func (rw *ResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	hijacker, ok := rw.ResponseWriter.(http.Hijacker)
 	if !ok {

@@ -28,7 +28,6 @@ func (s *JwtServiceImpl) ValidateAccessToken(tokenString string) (userID, userna
 		return "", "", core_errors.ErrUnauthorized
 	}
 
-	// Check token type
 	tokenType, _ := claims["type"].(string)
 	if tokenType != "access" {
 		return "", "", core_errors.ErrUnauthorized
@@ -41,7 +40,6 @@ func (s *JwtServiceImpl) ValidateAccessToken(tokenString string) (userID, userna
 
 	username = claims["uname"].(string)
 
-	// Check expiration
 	exp, _ := claims["exp"].(float64)
 	if time.Now().UTC().Unix() > int64(exp) {
 		return "", "", core_errors.ErrUnauthorized

@@ -6,10 +6,10 @@ import (
 	core_http_server "github.com/Aam-Shaegar/Rhythm/internal/core/transport/http/server"
 	"github.com/Aam-Shaegar/Rhythm/internal/features/events/service"
 	"github.com/Aam-Shaegar/Rhythm/internal/features/events/transport/http/create"
+	"github.com/Aam-Shaegar/Rhythm/internal/features/events/transport/http/delete"
 	"github.com/Aam-Shaegar/Rhythm/internal/features/events/transport/http/get"
 	"github.com/Aam-Shaegar/Rhythm/internal/features/events/transport/http/list"
 	"github.com/Aam-Shaegar/Rhythm/internal/features/events/transport/http/update"
-	"github.com/Aam-Shaegar/Rhythm/internal/features/events/transport/http/delete"
 )
 
 type EventsHTTPHandler struct {

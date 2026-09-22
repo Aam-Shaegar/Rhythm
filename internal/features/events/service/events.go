@@ -11,8 +11,8 @@ import (
 )
 
 type EventsServiceImpl struct {
-	repo       postgres.EventsRepository
-	reminders  RemindersServiceInterface
+	repo      postgres.EventsRepository
+	reminders RemindersServiceInterface
 }
 
 func NewEventsService(repo postgres.EventsRepository, reminders RemindersServiceInterface) *EventsServiceImpl {
@@ -53,9 +53,7 @@ func (s *EventsServiceImpl) CreateEvent(ctx context.Context, userID uuid.UUID, i
 		return nil, err
 	}
 
-	// Schedule reminders
 	if err := s.reminders.ScheduleForEvent(ctx, event, userID); err != nil {
-		// Log error but don't fail the creation
 	}
 
 	return s.toResponse(event), nil
@@ -128,9 +126,7 @@ func (s *EventsServiceImpl) UpdateEvent(ctx context.Context, userID uuid.UUID, e
 		return nil, err
 	}
 
-	// Update reminders
 	if err := s.reminders.UpdateRemindersForEvent(ctx, event, userID); err != nil {
-		// Log error but don't fail the update
 	}
 
 	return s.toResponse(event), nil
@@ -146,9 +142,7 @@ func (s *EventsServiceImpl) DeleteEvent(ctx context.Context, userID uuid.UUID, e
 		return core_errors.ErrNotFound
 	}
 
-	// Delete reminders
 	if err := s.reminders.DeleteRemindersForEvent(ctx, eventID); err != nil {
-		// Log error but don't fail the delete
 	}
 
 	return s.repo.Delete(ctx, eventID)

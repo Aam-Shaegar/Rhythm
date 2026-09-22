@@ -5,12 +5,12 @@ import (
 
 	core_http_server "github.com/Aam-Shaegar/Rhythm/internal/core/transport/http/server"
 	"github.com/Aam-Shaegar/Rhythm/internal/features/tasks/service"
+	"github.com/Aam-Shaegar/Rhythm/internal/features/tasks/transport/http/complete"
 	"github.com/Aam-Shaegar/Rhythm/internal/features/tasks/transport/http/create"
+	"github.com/Aam-Shaegar/Rhythm/internal/features/tasks/transport/http/delete"
 	"github.com/Aam-Shaegar/Rhythm/internal/features/tasks/transport/http/get"
 	"github.com/Aam-Shaegar/Rhythm/internal/features/tasks/transport/http/list"
 	"github.com/Aam-Shaegar/Rhythm/internal/features/tasks/transport/http/update"
-	"github.com/Aam-Shaegar/Rhythm/internal/features/tasks/transport/http/delete"
-	"github.com/Aam-Shaegar/Rhythm/internal/features/tasks/transport/http/complete"
 )
 
 type TasksHTTPHandler struct {

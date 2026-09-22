@@ -27,7 +27,6 @@ func (r *RemindersRepositoryImpl) CreateReminders(ctx context.Context, reminders
 		batch[i] = []any{rem.ID, rem.UserID, rem.EntityType, rem.EntityID, rem.Title, rem.RemindAt, rem.IsSent, rem.CreatedAt}
 	}
 
-	// Execute in a transaction for atomicity
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		return err

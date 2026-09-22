@@ -3,8 +3,8 @@ package postgres
 import (
 	"context"
 
-	"github.com/google/uuid"
 	"github.com/Aam-Shaegar/Rhythm/internal/features/users/domain"
+	"github.com/google/uuid"
 )
 
 func (r *UsersRepositoryImpl) GetByEmail(ctx context.Context, email string) (*domain.User, error) {

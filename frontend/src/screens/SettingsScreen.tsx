@@ -20,12 +20,6 @@ import {
   type CustomPalette,
 } from '../theme';
 
-// Оставлен для совместимости (раньше имя темы читали отсюда).
-export function loadTheme(): { name: ThemeName; color: string; photo: string | null } {
-  const p = loadCustom();
-  return { name: (localStorage.getItem('rhytm.theme') as ThemeName) || 'forest', color: p.accent, photo: loadPhoto() };
-}
-
 // Фото храним как dataURL в localStorage: лимит ~2.5 МБ, иначе квота.
 const MAX_PHOTO_BYTES = 2.5 * 1024 * 1024;
 
@@ -371,8 +365,7 @@ export default function SettingsScreen({
     </div>
   );
 }
-// apiFetch бросает plain-объект {status, message}, а не Error —
-// достаём настоящий текст причины, иначе видна только заглушка.
+// apiFetch бросает plain-объект {status,message}: достаём текст причины.
 function pushErrorMessage(e: unknown): string {
   if (e instanceof Error && e.message) return e.message;
   if (e && typeof e === 'object' && 'message' in e) {

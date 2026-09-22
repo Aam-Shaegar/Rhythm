@@ -60,11 +60,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       body: JSON.stringify({ email, password }),
     });
     const norm = normalizeLogin(data, email);
-    // login does not return refresh_token in body (it sets HttpOnly cookie);
-    // keep existing stored refresh token if any.
+    // Login returns no refresh_token in body (HttpOnly cookie); keep stored one.
     const prevRefresh = localStorage.getItem('rhytm.refresh_token') ?? '';
     setTokens(norm.access, prevRefresh || undefined);
-    // re-fetch full profile (created_at etc.)
+    // Re-fetch full profile (created_at etc.).
     try {
       const me = await apiFetch<User>('/users/me');
       setUser(me);

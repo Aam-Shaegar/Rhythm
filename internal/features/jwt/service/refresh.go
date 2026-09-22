@@ -33,7 +33,6 @@ func (s *JwtServiceImpl) RefreshTokens(ctx context.Context, refreshToken string)
 		return nil, err
 	}
 
-	// Revoke old refresh token (rotation)
 	if err := s.jwtRepo.RevokeRefreshToken(ctx, storedToken.ID); err != nil {
 		return nil, err
 	}

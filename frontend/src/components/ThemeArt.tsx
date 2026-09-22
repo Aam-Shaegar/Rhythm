@@ -1,9 +1,6 @@
 import type { ThemeName } from '../api/types';
 
-// Фоновые рисунки базовых тем — PNG из public/themes.
-// Картинки тёмные со светящимися дудлами, поэтому кладутся поверх
-// светлого градиента в режиме screen: тёмная подложка растворяется,
-// светлые рисунки остаются. Читаемость текста не страдает.
+// Тёмные PNG со светлыми дудлами: screen растворяет подложку.
 const SRC: Record<Exclude<ThemeName, 'custom'>, string> = {
   forest: '/themes/forest.png',
   coffee: '/themes/coffee.png',

@@ -40,8 +40,7 @@ func Auth(validator TokenValidator) Middleware {
 
 			ctx = context.WithValue(ctx, userIDKey, userID)
 			ctx = context.WithValue(ctx, usernameKey, username)
-			// Backward compatibility: legacy handlers use plain string key "user_id".
-			// Keep both keys in sync so all transports resolve the user.
+			// Старые хендлеры читают строковый ключ "user_id", дублируем значение.
 			ctx = context.WithValue(ctx, "user_id", userID)
 			ctx = context.WithValue(ctx, "username", username)
 

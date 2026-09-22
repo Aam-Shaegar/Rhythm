@@ -9,8 +9,8 @@ import (
 	"go.uber.org/zap"
 
 	events_domain "github.com/Aam-Shaegar/Rhythm/internal/features/events/domain"
-	tasks_domain "github.com/Aam-Shaegar/Rhythm/internal/features/tasks/domain"
 	"github.com/Aam-Shaegar/Rhythm/internal/features/reminders/domain"
+	tasks_domain "github.com/Aam-Shaegar/Rhythm/internal/features/tasks/domain"
 	"github.com/google/uuid"
 )
 
@@ -20,14 +20,12 @@ type RemindersServiceImpl struct {
 	log    Logger
 }
 
-// sender may be nil (no VAPID keys configured) — scheduling and the
-// settings API keep working, only push delivery is skipped.
+// sender nil = только планирование, без push-доставки.
 func NewRemindersService(repo RemindersRepository, sender PushSender) *RemindersServiceImpl {
 	return &RemindersServiceImpl{repo: repo, sender: sender}
 }
 
-// SetLogger enables delivery diagnostics. Nil disables logging
-// (used in tests); main.go passes the app logger.
+// Nil отключает логирование.
 func (s *RemindersServiceImpl) SetLogger(l Logger) {
 	s.log = l
 }
@@ -57,7 +55,6 @@ func (s *RemindersServiceImpl) ScheduleForEvent(ctx context.Context, event *even
 		},
 	}
 
-	// Filter out reminders that are in the past
 	var validReminders []*domain.Reminder
 	now := time.Now().UTC()
 	for _, r := range reminders {
@@ -90,7 +87,6 @@ func (s *RemindersServiceImpl) ScheduleForTask(ctx context.Context, task *tasks_
 		},
 	}
 
-	// Filter out reminders that are in the past
 	var validReminders []*domain.Reminder
 	now := time.Now().UTC()
 	for _, r := range reminders {
@@ -137,26 +133,20 @@ func (s *RemindersServiceImpl) ProcessPendingReminders(ctx context.Context, befo
 		return 0, nil
 	}
 
-	// Extract IDs to mark as sent
 	ids := make([]uuid.UUID, len(reminders))
 	for i, r := range reminders {
 		ids[i] = r.ID
 	}
 
-	// Mark as sent
 	if err := s.repo.MarkSent(ctx, ids); err != nil {
 		return 0, err
 	}
 
-	// Best-effort push delivery: failures never fail the batch,
-	// expired endpoints are cleaned up silently.
 	s.deliverPushes(ctx, reminders)
 
 	return len(reminders), nil
 }
 
-// deliverPushes groups reminders by user, loads each user's push
-// subscriptions once, and sends every reminder to every device.
 func (s *RemindersServiceImpl) deliverPushes(ctx context.Context, reminders []*domain.Reminder) {
 	if s.sender == nil {
 		return
@@ -204,7 +194,8 @@ func (s *RemindersServiceImpl) deliverPushes(ctx context.Context, reminders []*d
 	}
 }
 
-func (s *RemindersServiceImpl) SavePushSubscription(ctx context.Context, userID uuid.UUID, input domain.PushSubscriptionInput) error {	return s.repo.UpsertSubscription(ctx, &domain.PushSubscription{
+func (s *RemindersServiceImpl) SavePushSubscription(ctx context.Context, userID uuid.UUID, input domain.PushSubscriptionInput) error {
+	return s.repo.UpsertSubscription(ctx, &domain.PushSubscription{
 		UserID:   userID,
 		Endpoint: input.Endpoint,
 		P256DH:   input.P256DH,
@@ -216,8 +207,7 @@ func (s *RemindersServiceImpl) DeletePushSubscription(ctx context.Context, userI
 	return s.repo.DeleteSubscriptionByEndpoint(ctx, userID, endpoint)
 }
 
-// endpointHost extracts "host" from a push endpoint for logs.
-// Full endpoints contain secrets, never log them whole.
+// В логи только host: полный endpoint содержит секреты.
 func endpointHost(endpoint string) string {
 	u, err := url.Parse(endpoint)
 	if err != nil || u.Host == "" {

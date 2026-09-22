@@ -2,3 +2,6 @@
 build/
 server
 *.log
+# собранный фронт (собирается в Docker из исходников) и файловые логи бэка
+frontend/dist/
+logs/

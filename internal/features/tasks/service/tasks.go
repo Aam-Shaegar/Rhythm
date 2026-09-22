@@ -55,16 +55,11 @@ func (s *TasksServiceImpl) CreateTask(ctx context.Context, userID uuid.UUID, inp
 		return nil, err
 	}
 
-	// Schedule reminders
 	if err := s.remindersRepo.ScheduleForTask(ctx, task, userID); err != nil {
-		// Log error but don't fail the creation
 	}
 
-	// Generate recurring tasks if this is a parent task
 	if input.RecurrenceType != nil && recurrenceEnd != nil {
 		if err := s.generateRecurringForTask(ctx, task); err != nil {
-			// Log error but don't fail the creation
-			// In production, you'd want to handle this more gracefully
 		}
 	}
 
@@ -146,9 +141,7 @@ func (s *TasksServiceImpl) UpdateTask(ctx context.Context, userID uuid.UUID, tas
 		return nil, err
 	}
 
-	// Update reminders
 	if err := s.remindersRepo.UpdateRemindersForTask(ctx, task, userID); err != nil {
-		// Log error but don't fail the update
 	}
 
 	return s.toResponse(task), nil
@@ -176,9 +169,7 @@ func (s *TasksServiceImpl) CompleteTask(ctx context.Context, userID uuid.UUID, t
 		return nil, err
 	}
 
-	// Completed task needs no reminders anymore
 	if err := s.remindersRepo.DeleteRemindersForTask(ctx, taskID); err != nil {
-		// Log error but don't fail the completion
 	}
 
 	return s.toResponse(task), nil
@@ -194,17 +185,13 @@ func (s *TasksServiceImpl) DeleteTask(ctx context.Context, userID uuid.UUID, tas
 		return core_errors.ErrNotFound
 	}
 
-	// Delete reminders
 	if err := s.remindersRepo.DeleteRemindersForTask(ctx, taskID); err != nil {
-		// Log error but don't fail the deletion
 	}
 
 	return s.repo.Delete(ctx, taskID)
 }
 
 func (s *TasksServiceImpl) GenerateRecurringTasks(ctx context.Context, before time.Time) error {
-	// Get all users with recurring parent tasks
-	// This is a simplified version - in production you'd want to paginate users
 	users, err := s.getUsersWithRecurringTasks(ctx)
 	if err != nil {
 		return err
@@ -235,7 +222,6 @@ func (s *TasksServiceImpl) generateRecurringForTask(ctx context.Context, parent 
 		return nil
 	}
 
-	// Get existing children to find the latest due date
 	children, err := s.repo.GetByParentID(ctx, parent.ID)
 	if err != nil {
 		return err
@@ -248,7 +234,6 @@ func (s *TasksServiceImpl) generateRecurringForTask(ctx context.Context, parent 
 		lastDue = parent.DueAt
 	}
 
-	// Generate next occurrences
 	nextDue := s.nextOccurrence(lastDue, *parent.RecurrenceType)
 	for nextDue.Before(*parent.RecurrenceEnd) || nextDue.Equal(*parent.RecurrenceEnd) {
 		child := &domain.Task{
@@ -269,9 +254,7 @@ func (s *TasksServiceImpl) generateRecurringForTask(ctx context.Context, parent 
 			return err
 		}
 
-		// Create reminder for this task
 		if err := s.createTaskReminders(ctx, child); err != nil {
-			// Log but continue
 		}
 
 		nextDue = s.nextOccurrence(nextDue, *parent.RecurrenceType)
@@ -301,16 +284,16 @@ func (s *TasksServiceImpl) createTaskReminders(ctx context.Context, task *domain
 
 func (s *TasksServiceImpl) toResponse(task *domain.Task) *domain.TaskResponse {
 	return &domain.TaskResponse{
-		ID:              task.ID,
-		Title:           task.Title,
-		Description:     task.Description,
-		DueAt:           task.DueAt,
-		IsCompleted:     task.IsCompleted,
-		CompletedAt:     task.CompletedAt,
-		RecurrenceType:  task.RecurrenceType,
-		RecurrenceEnd:   task.RecurrenceEnd,
-		ParentTaskID:    task.ParentTaskID,
-		CreatedAt:       task.CreatedAt,
-		UpdatedAt:       task.UpdatedAt,
+		ID:             task.ID,
+		Title:          task.Title,
+		Description:    task.Description,
+		DueAt:          task.DueAt,
+		IsCompleted:    task.IsCompleted,
+		CompletedAt:    task.CompletedAt,
+		RecurrenceType: task.RecurrenceType,
+		RecurrenceEnd:  task.RecurrenceEnd,
+		ParentTaskID:   task.ParentTaskID,
+		CreatedAt:      task.CreatedAt,
+		UpdatedAt:      task.UpdatedAt,
 	}
 }

@@ -9,9 +9,9 @@ import (
 )
 
 type JwtHTTPHandler struct {
-	svc            service.JwtService
-	refreshTTL     time.Duration
-	secureCookie   bool
+	svc          service.JwtService
+	refreshTTL   time.Duration
+	secureCookie bool
 }
 
 func NewJwtHTTPHandler(svc service.JwtService, refreshTTL time.Duration, secureCookie bool) *JwtHTTPHandler {

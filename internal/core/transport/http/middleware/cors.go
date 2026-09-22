@@ -4,14 +4,12 @@ import (
 	"net/http"
 )
 
-// CORS middleware — разрешает запросы с фронтенда в dev режиме.
-// В проде заменить AllowedOrigins на конкретный домен.
+// CORS разрешает запросы с фронтенда.
 func CORS(allowedOrigins ...string) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			origin := r.Header.Get("Origin")
 
-			// Проверяем что origin в списке разрешённых
 			allowed := false
 			for _, o := range allowedOrigins {
 				if o == "*" || o == origin {
@@ -28,7 +26,6 @@ func CORS(allowedOrigins ...string) Middleware {
 				w.Header().Set("Access-Control-Expose-Headers", "X-Request-ID")
 			}
 
-			// Preflight запрос — отвечаем сразу
 			if r.Method == http.MethodOptions {
 				w.WriteHeader(http.StatusNoContent)
 				return

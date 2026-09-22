@@ -68,7 +68,7 @@ export function Modal({
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  // Prod a11y: фокус на первое поле при открытии (возврат фокуса — на вызывающей стороне).
+  // a11y: фокус на первое поле при открытии.
   const boxRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = boxRef.current?.querySelector<HTMLElement>('input, textarea, select, button:not(.icon-btn)');

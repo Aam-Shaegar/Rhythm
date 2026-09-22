@@ -12,15 +12,15 @@ import (
 )
 
 type mockTasksRepo struct {
-	tasks map[uuid.UUID]*domain.Task
-	byUser map[uuid.UUID][]*domain.Task
+	tasks    map[uuid.UUID]*domain.Task
+	byUser   map[uuid.UUID][]*domain.Task
 	byParent map[uuid.UUID][]*domain.Task
 }
 
 func newMockTasksRepo() *mockTasksRepo {
 	return &mockTasksRepo{
-		tasks: make(map[uuid.UUID]*domain.Task),
-		byUser: make(map[uuid.UUID][]*domain.Task),
+		tasks:    make(map[uuid.UUID]*domain.Task),
+		byUser:   make(map[uuid.UUID][]*domain.Task),
 		byParent: make(map[uuid.UUID][]*domain.Task),
 	}
 }
@@ -118,14 +118,12 @@ func (m *mockTasksRepo) Update(ctx context.Context, task *domain.Task) error {
 	}
 	m.tasks[task.ID] = task
 
-	// Update in byUser
 	for i, t := range m.byUser[task.UserID] {
 		if t.ID == task.ID {
 			m.byUser[task.UserID][i] = task
 			break
 		}
 	}
-	// Update in byParent if needed
 	if task.ParentTaskID != nil {
 		for i, t := range m.byParent[*task.ParentTaskID] {
 			if t.ID == task.ID {
@@ -144,7 +142,6 @@ func (m *mockTasksRepo) Delete(ctx context.Context, id uuid.UUID) error {
 	}
 	delete(m.tasks, id)
 
-	// Remove from byUser
 	userTasks := m.byUser[task.UserID]
 	for i, t := range userTasks {
 		if t.ID == id {
@@ -152,7 +149,6 @@ func (m *mockTasksRepo) Delete(ctx context.Context, id uuid.UUID) error {
 			break
 		}
 	}
-	// Remove from byParent
 	if task.ParentTaskID != nil {
 		parentTasks := m.byParent[*task.ParentTaskID]
 		for i, t := range parentTasks {
@@ -166,7 +162,7 @@ func (m *mockTasksRepo) Delete(ctx context.Context, id uuid.UUID) error {
 }
 
 type mockRemindersRepo struct {
-	reminders    []*domain.Reminder
+	reminders   []*domain.Reminder
 	scheduled   int
 	updated     int
 	deletedTask int
@@ -330,12 +326,12 @@ func TestGetTask_WrongUser(t *testing.T) {
 	otherUserID := uuid.New()
 	taskID := uuid.New()
 	task := &domain.Task{
-		ID:          taskID,
-		UserID:      userID,
-		Title:       "Test Task",
-		DueAt:       time.Now().Add(time.Hour),
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		ID:        taskID,
+		UserID:    userID,
+		Title:     "Test Task",
+		DueAt:     time.Now().Add(time.Hour),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
 	}
 	tasksRepo.Create(context.Background(), task)
 
@@ -566,12 +562,12 @@ func TestUpdateTask_WrongUser(t *testing.T) {
 	otherUserID := uuid.New()
 	taskID := uuid.New()
 	task := &domain.Task{
-		ID:          taskID,
-		UserID:      userID,
-		Title:       "Test Task",
-		DueAt:       time.Now().Add(time.Hour),
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		ID:        taskID,
+		UserID:    userID,
+		Title:     "Test Task",
+		DueAt:     time.Now().Add(time.Hour),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
 	}
 	tasksRepo.Create(context.Background(), task)
 
@@ -656,12 +652,12 @@ func TestDeleteTask_Success(t *testing.T) {
 	userID := uuid.New()
 	taskID := uuid.New()
 	task := &domain.Task{
-		ID:          taskID,
-		UserID:      userID,
-		Title:       "Test Task",
-		DueAt:       time.Now().Add(time.Hour),
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		ID:        taskID,
+		UserID:    userID,
+		Title:     "Test Task",
+		DueAt:     time.Now().Add(time.Hour),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
 	}
 	tasksRepo.Create(context.Background(), task)
 
@@ -688,12 +684,12 @@ func TestDeleteTask_WrongUser(t *testing.T) {
 	otherUserID := uuid.New()
 	taskID := uuid.New()
 	task := &domain.Task{
-		ID:          taskID,
-		UserID:      userID,
-		Title:       "Test Task",
-		DueAt:       time.Now().Add(time.Hour),
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		ID:        taskID,
+		UserID:    userID,
+		Title:     "Test Task",
+		DueAt:     time.Now().Add(time.Hour),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
 	}
 	tasksRepo.Create(context.Background(), task)
 

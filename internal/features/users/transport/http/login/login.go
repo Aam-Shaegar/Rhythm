@@ -11,9 +11,9 @@ import (
 )
 
 type Handler struct {
-	svc           service.UsersService
-	refreshTTL    time.Duration
-	secureCookie  bool
+	svc          service.UsersService
+	refreshTTL   time.Duration
+	secureCookie bool
 }
 
 func NewHandler(svc service.UsersService, refreshTTL time.Duration, secureCookie bool) *Handler {

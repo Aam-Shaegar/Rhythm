@@ -16,9 +16,9 @@ import (
 )
 
 type mockUsersRepo struct {
-	users    map[string]*users_domain.User
-	emails   map[string]*users_domain.User
-	byID     map[uuid.UUID]*users_domain.User
+	users  map[string]*users_domain.User
+	emails map[string]*users_domain.User
+	byID   map[uuid.UUID]*users_domain.User
 }
 
 func newMockUsersRepo() *mockUsersRepo {
@@ -88,7 +88,7 @@ func (m *mockUsersRepo) Update(ctx context.Context, user *users_domain.User) err
 
 type mockJwtService struct {
 	tokenPair *jwt_domain.TokenPair
-	err error
+	err       error
 }
 
 func newMockJwtService() *mockJwtService {
@@ -118,7 +118,8 @@ func (m *mockJwtService) RevokeRefreshToken(ctx context.Context, tokenString str
 	return m.err
 }
 
-func (m *mockJwtService) StartCleanup(ctx context.Context, interval time.Duration, logger service.Logger) {}
+func (m *mockJwtService) StartCleanup(ctx context.Context, interval time.Duration, logger service.Logger) {
+}
 
 func TestRegister_Success(t *testing.T) {
 	repo := newMockUsersRepo()
@@ -152,7 +153,6 @@ func TestRegister_DuplicateEmail(t *testing.T) {
 	jwtSvc := newMockJwtService()
 	svc := NewUsersService(repo, jwtSvc)
 
-	// First user
 	hash, _ := bcrypt.GenerateFromPassword([]byte("pass"), bcrypt.DefaultCost)
 	repo.Create(context.Background(), &users_domain.User{
 		ID:           uuid.New(),

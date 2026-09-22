@@ -67,7 +67,6 @@ func DecodeQueryParams(r *http.Request, dest any) error {
 		}
 	}
 
-	// Validate
 	if err := requestValidator.Struct(dest); err != nil {
 		return fmt.Errorf("request validation: %v: %w", err, core_error.ErrInvalidArgument)
 	}
@@ -76,7 +75,6 @@ func DecodeQueryParams(r *http.Request, dest any) error {
 }
 
 func setFieldFromString(field reflect.Value, value string) error {
-	// time.Time (value or via pointer recursion)
 	if field.Type() == reflect.TypeOf(time.Time{}) {
 		for _, layout := range []string{time.RFC3339, "2006-01-02", "2006-01-02T15:04:05Z07:00"} {
 			if t, err := time.Parse(layout, value); err == nil {
