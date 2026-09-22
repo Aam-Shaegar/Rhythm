@@ -318,6 +318,13 @@ input[type='color'] { width: 26px; height: 26px; border: none; border-radius: 50
   background: var(--surface-strong); color: var(--text);
   font-family: inherit; font-size: 16px; font-weight: 600; outline: none; width: 100%;
 }
+/* Одинаковая высота у названия, дат и селектов: нативные datetime/select
+   рисуются со своей высотой, поэтому фиксируем её явно */
+.field input, .field select { min-height: 46px; }
+.field input[type='datetime-local'], .field input[type='date'], .field input[type='time'] {
+  -webkit-appearance: none; appearance: none; min-height: 46px; line-height: 1.4;
+}
+.field input::-webkit-calendar-picker-indicator { cursor: pointer; opacity: 0.65; }
 /* На десктопе с точным указателем возвращаем компактный кегль */
 @media (min-width: 900px) and (pointer: fine) {
   .field input, .field textarea, .field select { font-size: 14px; }
