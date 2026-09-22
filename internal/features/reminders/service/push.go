@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"strings"
 
 	"github.com/Aam-Shaegar/Rhythm/internal/features/reminders/domain"
 	"github.com/SherClockHolmes/webpush-go"
@@ -55,8 +58,16 @@ func (s *WebPushSender) Send(ctx context.Context, sub *domain.PushSubscription, 
 	})
 	if err != nil {
 		// webpush-go may still return the response on protocol errors.
-		if resp != nil && (resp.StatusCode == 404 || resp.StatusCode == 410) {
-			return ErrSubscriptionGone
+		// Read the push service body (Apple/Google return the real
+		// reason there, e.g. BadJwtToken) before it is lost.
+		if resp != nil {
+			body := drainPushRespBody(resp)
+			if resp.StatusCode == 404 || resp.StatusCode == 410 {
+				return ErrSubscriptionGone
+			}
+			if body != "" {
+				return fmt.Errorf("webpush send: %w (status %d: %s)", err, resp.StatusCode, body)
+			}
 		}
 		return fmt.Errorf("webpush send: %w", err)
 	}
@@ -65,9 +76,24 @@ func (s *WebPushSender) Send(ctx context.Context, sub *domain.PushSubscription, 
 		return ErrSubscriptionGone
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("webpush unexpected status: %d", resp.StatusCode)
+		return fmt.Errorf("webpush unexpected status: %d: %s", resp.StatusCode, drainPushRespBody(resp))
 	}
 	return nil
+}
+
+// drainPushRespBody reads up to 4KB of a push service error response
+// for diagnostics and closes the body. Never logs endpoints/keys,
+// only the short reason string from the push service.
+func drainPushRespBody(resp *http.Response) string {
+	if resp == nil || resp.Body == nil {
+		return ""
+	}
+	defer resp.Body.Close()
+	b, err := io.ReadAll(io.LimitReader(resp.Body, 4096))
+	if err != nil || len(b) == 0 {
+		return ""
+	}
+	return strings.TrimSpace(string(b))
 }
 
 // BuildPushPayload renders a reminder into a notification.
