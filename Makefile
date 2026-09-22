@@ -1,7 +1,7 @@
 include .env
 export
 
-.PHONY: infra infra-down migrate-up migrate-down migrate-action migrate-create run backend-build backend-run build-all test secrets backup-restore
+.PHONY: infra infra-down migrate-up migrate-down migrate-action migrate-create run backend-build backend-run build-all test secrets vapid backup-restore
 
 infra:
 	@docker compose up -d postgres redis
@@ -59,6 +59,10 @@ secrets:
 	REFRESH=$$(openssl rand -hex 32); \
 	sed -i.bak -E "s|^JWT_ACCESS_SECRET=.*|JWT_ACCESS_SECRET=$$ACCESS|; s|^JWT_REFRESH_SECRET=.*|JWT_REFRESH_SECRET=$$REFRESH|" .env && rm -f .env.bak; \
 	echo "Done. Also set a strong POSTGRES_PASSWORD manually."
+
+vapid:
+	@echo "Generating VAPID key pair for Web Push (paste into .env, private key never goes to git)..."
+	@npx -y web-push generate-vapid-keys
 
 backup-restore:
 	@if [ -z "$(file)" ]; then \

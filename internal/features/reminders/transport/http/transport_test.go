@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Aam-Shaegar/Rhythm/internal/features/reminders/domain"
 	"github.com/google/uuid"
 )
 
@@ -31,6 +32,15 @@ func (s *stubRemindersSvc) DeleteRemindersForTask(ctx context.Context, id uuid.U
 }
 func (s *stubRemindersSvc) ProcessPendingReminders(ctx context.Context, b interface{}, l int) (int, error) {
 	return 0, nil
+}
+func (s *stubRemindersSvc) SavePushSubscription(ctx context.Context, u uuid.UUID, in domain.PushSubscriptionInput) error {
+	return nil
+}
+func (s *stubRemindersSvc) DeletePushSubscription(ctx context.Context, u uuid.UUID, endpoint string) error {
+	return nil
+}
+func (s *stubRemindersSvc) PushPublicKey() string {
+	return "test-public-key"
 }
 
 // NOTE: RemindersHTTPHandler requires service.RemindersService with concrete

@@ -90,7 +90,13 @@ func main() {
 	// Services - create in order of dependency
 	jwtSvc := jwt_service.NewJwtService(jwtRepo, usersRepo, cfg)
 	usersSvc := users_service.NewUsersService(usersRepo, jwtSvc)
-	remindersSvc := reminders_service.NewRemindersService(remindersRepo)
+	var pushSender reminders_service.PushSender
+	if cfg.VapidPublicKey != "" && cfg.VapidPrivateKey != "" {
+		pushSender = reminders_service.NewWebPushSender(cfg.VapidPublicKey, cfg.VapidPrivateKey, cfg.VapidSubject)
+	} else {
+		logger.Warn("VAPID keys missing: push notifications disabled (scheduling still works)")
+	}
+	remindersSvc := reminders_service.NewRemindersService(remindersRepo, pushSender)
 	eventsSvc := events_service.NewEventsService(eventsRepo, remindersSvc)
 	tasksSvc := tasks_service.NewTasksService(tasksRepo, remindersSvc)
 	reportsSvc := reports_service.NewReportsService(tasksRepo, eventsRepo)

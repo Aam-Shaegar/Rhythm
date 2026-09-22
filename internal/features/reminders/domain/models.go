@@ -11,6 +11,7 @@ type Reminder struct {
 	UserID     uuid.UUID
 	EntityType string
 	EntityID   uuid.UUID
+	Title      string
 	RemindAt   time.Time
 	IsSent     bool
 	SentAt     *time.Time
@@ -21,6 +22,7 @@ type CreateReminderInput struct {
 	UserID     uuid.UUID
 	EntityType string
 	EntityID   uuid.UUID
+	Title      string
 	RemindAt   time.Time
 }
 
@@ -44,7 +46,26 @@ type UpdateReminderSettingsInput struct {
 	TaskBefore24h   *bool `json:"task_before_24h,omitempty"`
 }
 
-// Simplified types for cross-feature references
+// PushSubscription is one browser/device endpoint for Web Push (RFC 8030).
+// Endpoint is globally unique: re-subscribing the same browser upserts.
+type PushSubscription struct {
+	ID        uuid.UUID
+	UserID    uuid.UUID
+	Endpoint  string
+	P256DH    string
+	Auth      string
+	CreatedAt time.Time
+}
+
+type PushSubscriptionInput struct {
+	Endpoint string `json:"endpoint" validate:"required,url,max=2000"`
+	P256DH   string `json:"p256dh" validate:"required,min=10,max=300"`
+	Auth     string `json:"auth" validate:"required,min=10,max=300"`
+}
+
+type DeletePushSubscriptionInput struct {
+	Endpoint string `json:"endpoint" validate:"required,url,max=2000"`
+}
 type Event struct {
 	ID          uuid.UUID
 	UserID      uuid.UUID

@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '../api/client';
+import {
+  currentPushState,
+  disablePush,
+  enablePush,
+  isIOS,
+  isStandalone,
+  type PushState,
+} from '../api/push';
 import type { ReminderSettings, ThemeName, User } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
 import { ErrorBlock, FieldError, Spinner } from '../components/ui';
@@ -334,6 +342,7 @@ export default function SettingsScreen({
 
         <div className="settings-section">
           <div className="settings-label">Уведомления</div>
+          <PushRow notify={notify} />
           {SETTING_LABELS.map(({ key, label }) => (
             <div className="switch-row" key={key}>
               <span className="t">{label}</span>
@@ -360,5 +369,70 @@ export default function SettingsScreen({
         </button>
       </div>
     </div>
+  );
+}
+
+function PushRow({ notify }: { notify: (k: 'ok' | 'err', t: string) => void }) {
+  const [state, setState] = useState<PushState>('off');
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    void currentPushState().then(setState);
+  }, []);
+
+  async function toggle() {
+    if (busy || state === 'unsupported' || state === 'denied') return;
+    setBusy(true);
+    setState('busy');
+    try {
+      if (state === 'on') {
+        await disablePush();
+        setState('off');
+        notify('ok', 'Push-уведомления выключены');
+      } else {
+        await enablePush();
+        setState('on');
+        notify('ok', 'Push-уведомления включены');
+      }
+    } catch (e) {
+      setState(await currentPushState());
+      notify('err', e instanceof Error ? e.message : 'Не получилось включить уведомления');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (state === 'unsupported') {
+    return (
+      <div className="switch-row">
+        <span className="t">Push на телефон недоступен в этом браузере</span>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="switch-row">
+        <span className="t">Push-уведомления на телефон</span>
+        <button
+          className={`toggle${state === 'on' ? ' on' : ''}`}
+          role="switch"
+          aria-checked={state === 'on'}
+          aria-label="Push-уведомления на телефон"
+          disabled={busy || state === 'busy' || state === 'denied'}
+          onClick={() => void toggle()}
+        />
+      </div>
+      {state === 'denied' && (
+        <div className="field-error" role="alert">
+          Уведомления запрещены — разрешите их в настройках браузера
+        </div>
+      )}
+      {isIOS() && !isStandalone() && state !== 'on' && (
+        <div className="state-text">
+          На iPhone пуши работают, если добавить «Ритм» на экран «Домой» (Поделиться → На экран «Домой»), iOS 16.4+
+        </div>
+      )}
+    </>
   );
 }

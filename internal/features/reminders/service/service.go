@@ -18,6 +18,9 @@ type RemindersRepository interface {
 	MarkSent(ctx context.Context, ids []uuid.UUID) error
 	GetByEntity(ctx context.Context, entityType string, entityID uuid.UUID) ([]*domain.Reminder, error)
 	DeleteByEntity(ctx context.Context, entityType string, entityID uuid.UUID) error
+	UpsertSubscription(ctx context.Context, sub *domain.PushSubscription) error
+	GetSubscriptionsByUser(ctx context.Context, userID uuid.UUID) ([]*domain.PushSubscription, error)
+	DeleteSubscriptionByEndpoint(ctx context.Context, userID uuid.UUID, endpoint string) error
 }
 
 type Logger interface {
@@ -35,5 +38,8 @@ type RemindersService interface {
 	DeleteRemindersForEvent(ctx context.Context, eventID uuid.UUID) error
 	DeleteRemindersForTask(ctx context.Context, taskID uuid.UUID) error
 	ProcessPendingReminders(ctx context.Context, before time.Time, limit int) (int, error)
+	SavePushSubscription(ctx context.Context, userID uuid.UUID, input domain.PushSubscriptionInput) error
+	DeletePushSubscription(ctx context.Context, userID uuid.UUID, endpoint string) error
+	PushPublicKey() string
 	StartWorker(ctx context.Context, interval time.Duration, logger Logger)
 }

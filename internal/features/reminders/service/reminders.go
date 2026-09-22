@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"go.uber.org/zap"
@@ -13,11 +14,14 @@ import (
 )
 
 type RemindersServiceImpl struct {
-	repo RemindersRepository
+	repo   RemindersRepository
+	sender PushSender
 }
 
-func NewRemindersService(repo RemindersRepository) *RemindersServiceImpl {
-	return &RemindersServiceImpl{repo: repo}
+// sender may be nil (no VAPID keys configured) — scheduling and the
+// settings API keep working, only push delivery is skipped.
+func NewRemindersService(repo RemindersRepository, sender PushSender) *RemindersServiceImpl {
+	return &RemindersServiceImpl{repo: repo, sender: sender}
 }
 
 func (s *RemindersServiceImpl) ScheduleForEvent(ctx context.Context, event *events_domain.Event, userID uuid.UUID) error {
@@ -26,18 +30,21 @@ func (s *RemindersServiceImpl) ScheduleForEvent(ctx context.Context, event *even
 			UserID:     userID,
 			EntityType: "event",
 			EntityID:   event.ID,
+			Title:      event.Title,
 			RemindAt:   event.StartAt.Add(-15 * time.Minute),
 		},
 		{
 			UserID:     userID,
 			EntityType: "event",
 			EntityID:   event.ID,
+			Title:      event.Title,
 			RemindAt:   event.StartAt.Add(-1 * time.Hour),
 		},
 		{
 			UserID:     userID,
 			EntityType: "event",
 			EntityID:   event.ID,
+			Title:      event.Title,
 			RemindAt:   event.StartAt.Add(-24 * time.Hour),
 		},
 	}
@@ -63,12 +70,14 @@ func (s *RemindersServiceImpl) ScheduleForTask(ctx context.Context, task *tasks_
 			UserID:     userID,
 			EntityType: "task",
 			EntityID:   task.ID,
+			Title:      task.Title,
 			RemindAt:   task.DueAt.Add(-1 * time.Hour),
 		},
 		{
 			UserID:     userID,
 			EntityType: "task",
 			EntityID:   task.ID,
+			Title:      task.Title,
 			RemindAt:   task.DueAt.Add(-24 * time.Hour),
 		},
 	}
@@ -131,10 +140,61 @@ func (s *RemindersServiceImpl) ProcessPendingReminders(ctx context.Context, befo
 		return 0, err
 	}
 
-	// TODO: Send actual notifications (in-app, push, email)
-	// For now, just mark as sent
+	// Best-effort push delivery: failures never fail the batch,
+	// expired endpoints are cleaned up silently.
+	s.deliverPushes(ctx, reminders)
 
 	return len(reminders), nil
+}
+
+// deliverPushes groups reminders by user, loads each user's push
+// subscriptions once, and sends every reminder to every device.
+func (s *RemindersServiceImpl) deliverPushes(ctx context.Context, reminders []*domain.Reminder) {
+	if s.sender == nil {
+		return
+	}
+
+	byUser := make(map[uuid.UUID][]*domain.Reminder)
+	for _, r := range reminders {
+		byUser[r.UserID] = append(byUser[r.UserID], r)
+	}
+
+	for userID, rs := range byUser {
+		subs, err := s.repo.GetSubscriptionsByUser(ctx, userID)
+		if err != nil || len(subs) == 0 {
+			continue
+		}
+		for _, r := range rs {
+			payload := BuildPushPayload(r)
+			for _, sub := range subs {
+				if err := s.sender.Send(ctx, sub, payload); err != nil {
+					if errors.Is(err, ErrSubscriptionGone) {
+						_ = s.repo.DeleteSubscriptionByEndpoint(ctx, userID, sub.Endpoint)
+					}
+				}
+			}
+		}
+	}
+}
+
+func (s *RemindersServiceImpl) SavePushSubscription(ctx context.Context, userID uuid.UUID, input domain.PushSubscriptionInput) error {
+	return s.repo.UpsertSubscription(ctx, &domain.PushSubscription{
+		UserID:   userID,
+		Endpoint: input.Endpoint,
+		P256DH:   input.P256DH,
+		Auth:     input.Auth,
+	})
+}
+
+func (s *RemindersServiceImpl) DeletePushSubscription(ctx context.Context, userID uuid.UUID, endpoint string) error {
+	return s.repo.DeleteSubscriptionByEndpoint(ctx, userID, endpoint)
+}
+
+func (s *RemindersServiceImpl) PushPublicKey() string {
+	if w, ok := s.sender.(*WebPushSender); ok {
+		return w.PublicKey
+	}
+	return ""
 }
 
 func (s *RemindersServiceImpl) StartWorker(ctx context.Context, interval time.Duration, logger Logger) {

@@ -53,10 +53,28 @@ func (m *mockRemindersRepo) DeleteByEntity(ctx context.Context, t string, id uui
 	m.deleted = append(m.deleted, [2]string{t, id.String()})
 	return nil
 }
+func (m *mockRemindersRepo) UpsertSubscription(ctx context.Context, sub *domain.PushSubscription) error {
+	if m.err != nil {
+		return m.err
+	}
+	return nil
+}
+func (m *mockRemindersRepo) GetSubscriptionsByUser(ctx context.Context, userID uuid.UUID) ([]*domain.PushSubscription, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	return nil, nil
+}
+func (m *mockRemindersRepo) DeleteSubscriptionByEndpoint(ctx context.Context, userID uuid.UUID, endpoint string) error {
+	if m.err != nil {
+		return m.err
+	}
+	return nil
+}
 
 func TestScheduleForEvent_FutureCreatesThree(t *testing.T) {
 	repo := &mockRemindersRepo{}
-	svc := NewRemindersService(repo)
+	svc := NewRemindersService(repo, nil)
 	ev := &events_domain.Event{ID: uuid.New(), StartAt: time.Now().UTC().Add(48 * time.Hour)}
 	if err := svc.ScheduleForEvent(context.Background(), ev, uuid.New()); err != nil {
 		t.Fatal(err)
@@ -68,7 +86,7 @@ func TestScheduleForEvent_FutureCreatesThree(t *testing.T) {
 
 func TestScheduleForEvent_PastCreatesNone(t *testing.T) {
 	repo := &mockRemindersRepo{}
-	svc := NewRemindersService(repo)
+	svc := NewRemindersService(repo, nil)
 	ev := &events_domain.Event{ID: uuid.New(), StartAt: time.Now().UTC().Add(-48 * time.Hour)}
 	if err := svc.ScheduleForEvent(context.Background(), ev, uuid.New()); err != nil {
 		t.Fatal(err)
@@ -81,7 +99,7 @@ func TestScheduleForEvent_PastCreatesNone(t *testing.T) {
 func TestScheduleForEvent_SoonOnlyFuture(t *testing.T) {
 	// event in 30m: -24h and -1h are past, only -15m is future
 	repo := &mockRemindersRepo{}
-	svc := NewRemindersService(repo)
+	svc := NewRemindersService(repo, nil)
 	ev := &events_domain.Event{ID: uuid.New(), StartAt: time.Now().UTC().Add(30 * time.Minute)}
 	if err := svc.ScheduleForEvent(context.Background(), ev, uuid.New()); err != nil {
 		t.Fatal(err)
@@ -93,7 +111,7 @@ func TestScheduleForEvent_SoonOnlyFuture(t *testing.T) {
 
 func TestScheduleForTask_FutureAndPast(t *testing.T) {
 	repo := &mockRemindersRepo{}
-	svc := NewRemindersService(repo)
+	svc := NewRemindersService(repo, nil)
 	future := &tasks_domain.Task{ID: uuid.New(), DueAt: time.Now().UTC().Add(48 * time.Hour)}
 	if err := svc.ScheduleForTask(context.Background(), future, uuid.New()); err != nil {
 		t.Fatal(err)
@@ -102,7 +120,7 @@ func TestScheduleForTask_FutureAndPast(t *testing.T) {
 		t.Fatalf("future task needs 2 reminders, got %d", len(repo.created[0]))
 	}
 	repo2 := &mockRemindersRepo{}
-	svc2 := NewRemindersService(repo2)
+	svc2 := NewRemindersService(repo2, nil)
 	past := &tasks_domain.Task{ID: uuid.New(), DueAt: time.Now().UTC().Add(-time.Hour)}
 	if err := svc2.ScheduleForTask(context.Background(), past, uuid.New()); err != nil {
 		t.Fatal(err)
@@ -114,7 +132,7 @@ func TestScheduleForTask_FutureAndPast(t *testing.T) {
 
 func TestUpdateReminders_DeletesThenSchedules(t *testing.T) {
 	repo := &mockRemindersRepo{}
-	svc := NewRemindersService(repo)
+	svc := NewRemindersService(repo, nil)
 	ev := &events_domain.Event{ID: uuid.New(), StartAt: time.Now().UTC().Add(48 * time.Hour)}
 	if err := svc.UpdateRemindersForEvent(context.Background(), ev, uuid.New()); err != nil {
 		t.Fatal(err)
@@ -136,7 +154,7 @@ func TestUpdateReminders_DeletesThenSchedules(t *testing.T) {
 
 func TestProcessPending_Empty(t *testing.T) {
 	repo := &mockRemindersRepo{pending: nil}
-	svc := NewRemindersService(repo)
+	svc := NewRemindersService(repo, nil)
 	n, err := svc.ProcessPendingReminders(context.Background(), time.Now(), 100)
 	if err != nil || n != 0 {
 		t.Fatalf("empty should be 0,nil got %d,%v", n, err)
@@ -148,7 +166,7 @@ func TestProcessPending_Empty(t *testing.T) {
 
 func TestProcessPending_MarksSent(t *testing.T) {
 	repo := &mockRemindersRepo{pending: []*domain.Reminder{{ID: uuid.New()}, {ID: uuid.New()}}}
-	svc := NewRemindersService(repo)
+	svc := NewRemindersService(repo, nil)
 	n, err := svc.ProcessPendingReminders(context.Background(), time.Now(), 100)
 	if err != nil || n != 2 {
 		t.Fatalf("expected 2, got %d,%v", n, err)
@@ -160,7 +178,7 @@ func TestProcessPending_MarksSent(t *testing.T) {
 
 func TestProcessPending_RepoError(t *testing.T) {
 	repo := &mockRemindersRepo{err: errors.New("db")}
-	svc := NewRemindersService(repo)
+	svc := NewRemindersService(repo, nil)
 	if _, err := svc.ProcessPendingReminders(context.Background(), time.Now(), 10); err == nil {
 		t.Fatalf("expected error")
 	}
@@ -168,7 +186,7 @@ func TestProcessPending_RepoError(t *testing.T) {
 
 func TestDeleteReminders(t *testing.T) {
 	repo := &mockRemindersRepo{}
-	svc := NewRemindersService(repo)
+	svc := NewRemindersService(repo, nil)
 	id := uuid.New()
 	if err := svc.DeleteRemindersForEvent(context.Background(), id); err != nil {
 		t.Fatal(err)
@@ -179,4 +197,123 @@ func TestDeleteReminders(t *testing.T) {
 	if len(repo.deleted) != 2 {
 		t.Fatalf("expected 2 deletes")
 	}
+}
+
+type fakeSender struct {
+	sent   []string // endpoints
+	fail   map[string]error
+	called int
+}
+
+func (f *fakeSender) Send(ctx context.Context, sub *domain.PushSubscription, payload []byte) error {
+	f.called++
+	f.sent = append(f.sent, sub.Endpoint)
+	if err, ok := f.fail[sub.Endpoint]; ok {
+		return err
+	}
+	return nil
+}
+
+func TestProcessPending_SendsPushToEachDevice(t *testing.T) {
+	uid := uuid.MustParse("11111111-1111-1111-1111-111111111111")
+	repo := &subsRepo{
+		mockRemindersRepo: &mockRemindersRepo{
+			pending: []*domain.Reminder{
+				{ID: uuid.New(), UserID: uid, EntityType: "event", Title: "Созвон"},
+				{ID: uuid.New(), UserID: uid, EntityType: "task", Title: "Отчёт"},
+			},
+		},
+		subs: []*domain.PushSubscription{
+			{ID: uuid.New(), Endpoint: "https://push/a"},
+			{ID: uuid.New(), Endpoint: "https://push/b"},
+		},
+	}
+	sender := &fakeSender{}
+	svc := NewRemindersService(repo, sender)
+	n, err := svc.ProcessPendingReminders(context.Background(), time.Now(), 100)
+	if err != nil || n != 2 {
+		t.Fatalf("expected 2,nil got %d,%v", n, err)
+	}
+	// 2 reminders x 2 devices
+	if sender.called != 4 {
+		t.Fatalf("expected 4 sends, got %d", sender.called)
+	}
+}
+
+type subsRepo struct {
+	*mockRemindersRepo
+	subs    []*domain.PushSubscription
+	deleted []string
+}
+
+func (s *subsRepo) GetSubscriptionsByUser(ctx context.Context, userID uuid.UUID) ([]*domain.PushSubscription, error) {
+	return s.subs, nil
+}
+
+func (s *subsRepo) DeleteSubscriptionByEndpoint(ctx context.Context, userID uuid.UUID, endpoint string) error {
+	s.deleted = append(s.deleted, endpoint)
+	return nil
+}
+
+func TestProcessPending_GoneSubscriptionDeleted(t *testing.T) {
+	uid := uuid.New()
+	repo := &subsRepo{
+		mockRemindersRepo: &mockRemindersRepo{
+			pending: []*domain.Reminder{{ID: uuid.New(), UserID: uid, EntityType: "task", Title: "X"}},
+		},
+		subs: []*domain.PushSubscription{{ID: uuid.New(), Endpoint: "https://push/dead"}},
+	}
+	sender := &fakeSender{fail: map[string]error{"https://push/dead": ErrSubscriptionGone}}
+	svc := NewRemindersService(repo, sender)
+	n, err := svc.ProcessPendingReminders(context.Background(), time.Now(), 100)
+	if err != nil || n != 1 {
+		t.Fatalf("send failure must not fail batch: %d,%v", n, err)
+	}
+	if len(repo.deleted) != 1 || repo.deleted[0] != "https://push/dead" {
+		t.Fatalf("dead endpoint must be deleted, got %v", repo.deleted)
+	}
+}
+
+func TestProcessPending_NoSenderSkipsPush(t *testing.T) {
+	repo := &mockRemindersRepo{pending: []*domain.Reminder{{ID: uuid.New()}}}
+	svc := NewRemindersService(repo, nil)
+	n, err := svc.ProcessPendingReminders(context.Background(), time.Now(), 100)
+	if err != nil || n != 1 {
+		t.Fatalf("expected 1,nil got %d,%v", n, err)
+	}
+}
+
+func TestSaveDeletePushSubscription(t *testing.T) {
+	repo := &mockRemindersRepo{}
+	svc := NewRemindersService(repo, nil)
+	uid := uuid.New()
+	in := domain.PushSubscriptionInput{Endpoint: "https://push/x", P256DH: "p256dh-key-data", Auth: "auth-secret-data"}
+	if err := svc.SavePushSubscription(context.Background(), uid, in); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.DeletePushSubscription(context.Background(), uid, in.Endpoint); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestBuildPushPayload(t *testing.T) {
+	p := BuildPushPayload(&domain.Reminder{EntityType: "event", Title: "Созвон"})
+	if string(p) == "" || !containsStr(string(p), "Созвон") {
+		t.Fatalf("payload must contain title: %s", p)
+	}
+	p2 := BuildPushPayload(&domain.Reminder{EntityType: "task", Title: ""})
+	if !containsStr(string(p2), "Новое напоминание") && !containsStr(string(p2), "Напоминание") {
+		t.Fatalf("empty title must fall back: %s", p2)
+	}
+}
+
+func containsStr(s, sub string) bool {
+	return len(s) >= len(sub) && (func() bool {
+		for i := 0; i+len(sub) <= len(s); i++ {
+			if s[i:i+len(sub)] == sub {
+				return true
+			}
+		}
+		return false
+	})()
 }

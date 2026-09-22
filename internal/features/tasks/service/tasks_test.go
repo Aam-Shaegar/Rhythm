@@ -166,7 +166,10 @@ func (m *mockTasksRepo) Delete(ctx context.Context, id uuid.UUID) error {
 }
 
 type mockRemindersRepo struct {
-	reminders []*domain.Reminder
+	reminders    []*domain.Reminder
+	scheduled   int
+	updated     int
+	deletedTask int
 }
 
 func newMockRemindersRepo() *mockRemindersRepo {
@@ -181,15 +184,17 @@ func (m *mockRemindersRepo) CreateReminders(ctx context.Context, reminders []*do
 }
 
 func (m *mockRemindersRepo) ScheduleForTask(ctx context.Context, task *domain.Task, userID uuid.UUID) error {
-	// Mock implementation - just track that it was called
+	m.scheduled++
 	return nil
 }
 
 func (m *mockRemindersRepo) UpdateRemindersForTask(ctx context.Context, task *domain.Task, userID uuid.UUID) error {
+	m.updated++
 	return nil
 }
 
 func (m *mockRemindersRepo) DeleteRemindersForTask(ctx context.Context, taskID uuid.UUID) error {
+	m.deletedTask++
 	return nil
 }
 
@@ -707,4 +712,75 @@ func ptr[T any](v T) *T {
 
 func strPtr(s string) *string {
 	return &s
+}
+
+func TestCreateTask_SchedulesReminders(t *testing.T) {
+	tasksRepo := newMockTasksRepo()
+	remindersRepo := newMockRemindersRepo()
+	svc := NewTasksService(tasksRepo, remindersRepo)
+
+	due := time.Now().Add(48 * time.Hour).Format(time.RFC3339)
+	task, err := svc.CreateTask(context.Background(), uuid.New(), domain.CreateTaskInput{
+		Title: "Plan me",
+		DueAt: due,
+	})
+	if err != nil {
+		t.Fatalf("CreateTask failed: %v", err)
+	}
+	if task.Title != "Plan me" {
+		t.Fatalf("unexpected task: %+v", task)
+	}
+	if remindersRepo.scheduled != 1 {
+		t.Fatalf("CreateTask must schedule reminders once, got %d", remindersRepo.scheduled)
+	}
+}
+
+func TestUpdateTask_ReschedulesReminders(t *testing.T) {
+	tasksRepo := newMockTasksRepo()
+	remindersRepo := newMockRemindersRepo()
+	svc := NewTasksService(tasksRepo, remindersRepo)
+
+	userID, taskID := uuid.New(), uuid.New()
+	tasksRepo.Create(context.Background(), &domain.Task{
+		ID:        taskID,
+		UserID:    userID,
+		Title:     "Original",
+		DueAt:     time.Now().Add(time.Hour),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	})
+
+	newDue := time.Now().Add(5 * time.Hour).Format(time.RFC3339)
+	if _, err := svc.UpdateTask(context.Background(), userID, taskID, domain.UpdateTaskInput{
+		DueAt: &newDue,
+	}); err != nil {
+		t.Fatalf("UpdateTask failed: %v", err)
+	}
+	if remindersRepo.updated != 1 {
+		t.Fatalf("UpdateTask must reschedule reminders once, got %d", remindersRepo.updated)
+	}
+}
+
+func TestCompleteTask_DeletesReminders(t *testing.T) {
+	tasksRepo := newMockTasksRepo()
+	remindersRepo := newMockRemindersRepo()
+	svc := NewTasksService(tasksRepo, remindersRepo)
+
+	userID := uuid.New()
+	taskID := uuid.New()
+	tasksRepo.Create(context.Background(), &domain.Task{
+		ID:        taskID,
+		UserID:    userID,
+		Title:     "Done me",
+		DueAt:     time.Now().Add(time.Hour),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	})
+
+	if _, err := svc.CompleteTask(context.Background(), userID, taskID); err != nil {
+		t.Fatalf("CompleteTask failed: %v", err)
+	}
+	if remindersRepo.deletedTask != 1 {
+		t.Fatalf("CompleteTask must delete reminders once, got %d", remindersRepo.deletedTask)
+	}
 }

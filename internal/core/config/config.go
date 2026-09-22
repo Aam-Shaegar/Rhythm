@@ -17,6 +17,9 @@ type Config struct {
 	RedisAddr           string
 	AllowedOrigins      []string
 	SecureRefreshCookie bool
+	VapidPublicKey      string
+	VapidPrivateKey     string
+	VapidSubject        string
 }
 
 func NewConfig() (*Config, error) {
@@ -74,6 +77,9 @@ func NewConfig() (*Config, error) {
 		RedisAddr:           redisAddr,
 		AllowedOrigins:      allowedOrigins,
 		SecureRefreshCookie: secureRefreshCookie,
+		VapidPublicKey:      os.Getenv("VAPID_PUBLIC_KEY"),
+		VapidPrivateKey:     os.Getenv("VAPID_PRIVATE_KEY"),
+		VapidSubject:        os.Getenv("VAPID_SUBJECT"),
 	}, nil
 }
 
