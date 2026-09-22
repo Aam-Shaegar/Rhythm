@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	core_errors "github.com/Aam-Shaegar/Rhythm/internal/core/errors"
 	"github.com/Aam-Shaegar/Rhythm/internal/features/reminders/domain"
 	"github.com/google/uuid"
 )
@@ -190,6 +191,12 @@ func (r *RemindersRepositoryImpl) GetSubscriptionsByUser(ctx context.Context, us
 func (r *RemindersRepositoryImpl) DeleteSubscriptionByEndpoint(ctx context.Context, userID uuid.UUID, endpoint string) error {
 	const sql = `DELETE FROM push_subscriptions WHERE user_id = $1 AND endpoint = $2`
 
-	_, err := r.pool.Exec(ctx, sql, userID, endpoint)
-	return err
+	tag, err := r.pool.Exec(ctx, sql, userID, endpoint)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return core_errors.ErrNotFound
+	}
+	return nil
 }
