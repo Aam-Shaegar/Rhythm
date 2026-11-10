@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"github.com/google/uuid"
 	"time"
 
 	core_errors "github.com/Aam-Shaegar/Rhythm/internal/core/errors"
@@ -49,4 +50,8 @@ func (s *JwtServiceImpl) RevokeRefreshToken(ctx context.Context, tokenString str
 	}
 
 	return s.jwtRepo.RevokeRefreshToken(ctx, storedToken.ID)
+}
+
+func (s *JwtServiceImpl) RevokeAllUserSessions(ctx context.Context, uid uuid.UUID) error {
+	return s.jwtRepo.RevokeAllUserTokens(ctx, uid)
 }

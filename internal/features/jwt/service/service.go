@@ -24,6 +24,7 @@ type UsersRepository interface {
 }
 
 type JwtService interface {
+	RevokeAllUserSessions(context.Context, uuid.UUID) error
 	GeneratePair(ctx context.Context, userID uuid.UUID, username string) (*jwt_domain.TokenPair, error)
 	ValidateAccessToken(tokenString string) (string, string, error)
 	RefreshTokens(ctx context.Context, refreshToken string) (*jwt_domain.TokenPair, error)

@@ -37,7 +37,7 @@ func TestUpdateProfile_ConflictEmail(t *testing.T) {
 	a, _ := svc.Register(context.Background(), dtos.RegisterInput{Username: "alice", Email: "alice@ex.com", Password: "password123"})
 	_, _ = svc.Register(context.Background(), dtos.RegisterInput{Username: "bob", Email: "bob@ex.com", Password: "password123"})
 	bEmail := "bob@ex.com"
-	_, err := svc.UpdateProfile(context.Background(), a.User.ID, dtos.UpdateProfileInput{Email: &bEmail})
+	_, err := svc.UpdateProfile(context.Background(), a.User.ID, dtos.UpdateProfileInput{Email: &bEmail, CurrentPassword: strPtr("password123")})
 	if !errors.Is(err, core_errors.ErrConflict) {
 		t.Fatalf("email conflict should be Conflict, got %v", err)
 	}
@@ -97,5 +97,31 @@ func TestGetMe_NotFound_Edge(t *testing.T) {
 	_, err := svc.GetMe(context.Background(), uuid.New())
 	if !errors.Is(err, core_errors.ErrNotFound) {
 		t.Fatalf("expected NotFound, got %v", err)
+	}
+}
+
+func TestPasswordChangeRequiresCurrentPassword(t *testing.T) {
+	repo := newMockUsersRepo()
+	svc := NewUsersService(repo, newMockJwtService())
+	a, err := svc.Register(context.Background(), dtos.RegisterInput{Username: "passwordcheck", Email: "passwordcheck@ex.com", Password: "password123"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	next := "new-password123"
+	wrong := "incorrect123"
+	old := "password123"
+	for _, proof := range []*string{nil, &wrong} {
+		if _, err := svc.UpdateProfile(context.Background(), a.User.ID, dtos.UpdateProfileInput{NewPassword: &next, CurrentPassword: proof}); !errors.Is(err, core_errors.ErrUnauthorized) {
+			t.Fatalf("missing/incorrect proof accepted: %v", err)
+		}
+	}
+	if _, err := svc.UpdateProfile(context.Background(), a.User.ID, dtos.UpdateProfileInput{NewPassword: &next, CurrentPassword: &old}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Login(context.Background(), dtos.LoginInput{Email: a.User.Email, Password: old}); !errors.Is(err, core_errors.ErrUnauthorized) {
+		t.Fatal("old password still works")
+	}
+	if _, err := svc.Login(context.Background(), dtos.LoginInput{Email: a.User.Email, Password: next}); err != nil {
+		t.Fatal(err)
 	}
 }

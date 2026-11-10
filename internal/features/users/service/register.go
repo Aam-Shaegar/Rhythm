@@ -130,6 +130,29 @@ func (s *UsersServiceImpl) UpdateProfile(ctx context.Context, userID uuid.UUID, 
 		return nil, err
 	}
 
+	candidate := *user
+	user = &candidate
+
+	credentialsChanged := input.NewPassword != nil || (input.Email != nil && *input.Email != user.Email)
+	if credentialsChanged {
+		if input.CurrentPassword == nil {
+			return nil, core_errors.ErrUnauthorized
+		}
+		if err := s.passwordHasher.Compare(user.PasswordHash, *input.CurrentPassword); err != nil {
+			return nil, core_errors.ErrUnauthorized
+		}
+	}
+	if input.NewPassword != nil {
+		if len(*input.NewPassword) < 8 || len(*input.NewPassword) > 72 {
+			return nil, core_errors.ErrInvalidArgument
+		}
+		hash, err := s.passwordHasher.Hash(*input.NewPassword)
+		if err != nil {
+			return nil, err
+		}
+		user.PasswordHash = hash
+	}
+
 	if input.Username != nil {
 		exists, err := s.repo.ExistsByUsername(ctx, *input.Username)
 		if err != nil {
@@ -156,6 +179,12 @@ func (s *UsersServiceImpl) UpdateProfile(ctx context.Context, userID uuid.UUID, 
 
 	if err := s.repo.Update(ctx, user); err != nil {
 		return nil, err
+	}
+
+	if credentialsChanged {
+		if err := s.jwtSvc.RevokeAllUserSessions(ctx, userID); err != nil {
+			return nil, err
+		}
 	}
 
 	return &dtos.UserResponse{

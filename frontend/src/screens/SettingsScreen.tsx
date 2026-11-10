@@ -12,7 +12,7 @@ import {
 import type { ReminderSettings, ThemeName, User } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
 import ReminderEditor from '../components/ReminderEditor';
-import { ErrorBlock, FieldError, Spinner } from '../components/ui';
+import { ErrorBlock, FieldError, Spinner, Modal } from '../components/ui';
 import {
   DEFAULT_CUSTOM,
   loadCustom,
@@ -57,6 +57,10 @@ export default function SettingsScreen({
   const [email, setEmail] = useState('');
   const [formErr, setFormErr] = useState('');
   const [saving, setSaving] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [settings, setSettings] = useState<ReminderSettings>(DEFAULT_SETTINGS);
   const [settingsBusy, setSettingsBusy] = useState(false);
   const [custom, setCustom] = useState<CustomPalette>(() => loadCustom());
@@ -95,15 +99,20 @@ export default function SettingsScreen({
       setFormErr('Введите корректную почту');
       return;
     }
+    const credentialsChanged = email.trim() !== profile?.email || newPassword.length > 0;
+    if (credentialsChanged && !currentPassword) { setFormErr('Для изменения почты или пароля введите текущий пароль'); return; }
+    if (newPassword && (newPassword.length < 8 || newPassword.length > 72 || newPassword !== confirmPassword)) { setFormErr('Новый пароль: 8–72 символа. Повтор пароля должен совпадать.'); return; }
     setSaving(true);
     try {
       const updated = await apiFetch<User>('/users/me', {
         method: 'PATCH',
-        body: JSON.stringify({ username: name.trim(), email: email.trim() }),
+        body: JSON.stringify({ username: name.trim(), email: email.trim(), ...(credentialsChanged ? { current_password: currentPassword } : {}), ...(newPassword ? { new_password: newPassword } : {}) }),
       });
       setProfile(updated);
-      await refreshUser();
-      notify('ok', 'Профиль обновлён');
+      setProfileOpen(false);
+      setCurrentPassword(''); setNewPassword(''); setConfirmPassword('');
+      if (credentialsChanged) { logout(); notify('ok', 'Данные обновлены. Войдите с новыми данными.'); }
+      else { await refreshUser(); notify('ok', 'Профиль обновлён'); }
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Не получилось сохранить';
       setFormErr(msg);
@@ -205,23 +214,20 @@ export default function SettingsScreen({
             </div>
             <div>
               <div className="name">{profile?.username}</div>
-              <div className="mail">{profile?.email}</div>
+              <div className="settings-hint">Личный аккаунт</div>
             </div>
-          </div>
-          <div className="form-card" style={{ marginTop: 10 }}>
-            <label className="field">
-              <span>Имя пользователя</span>
-              <input value={name} onChange={(e) => setName(e.target.value)} maxLength={100} />
-            </label>
-            <label className="field">
-              <span>Почта</span>
-              <input value={email} onChange={(e) => setEmail(e.target.value)} inputMode="email" />
-            </label>
-            <FieldError text={formErr} />
-            <button className="btn-primary" onClick={() => void saveProfile()} disabled={saving}>
-              {saving ? 'Сохранение…' : 'Сохранить профиль'}
+            <button className="profile-gear" aria-label="Изменить профиль, почту и пароль" title="Настройки аккаунта" onClick={() => { setName(profile?.username ?? ''); setEmail(profile?.email ?? ''); setFormErr(''); setCurrentPassword(''); setNewPassword(''); setConfirmPassword(''); setProfileOpen(true); }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M9 3h6l.6 3 2.5 1.5 2.9-1 3 5-2.3 2 .1 3-2.7 1.5-.5 3H9l-.6-3L6 16.5l-3 1-3-5 2.4-2-.1-3L5 6l.5-3Z" transform="translate(2 2) scale(.8)"/></svg>
             </button>
           </div>
+        </div>
+
+        <div className="settings-section">
+          <div className="settings-label">Уведомления</div>
+          <PushRow notify={notify} />
+          <ReminderEditor label="События" offsets={settings.event_offsets} busy={settingsBusy} onSave={v => saveReminders('event_offsets',v)} />
+          <ReminderEditor label="Задачи" offsets={settings.task_offsets} busy={settingsBusy} onSave={v => saveReminders('task_offsets',v)} />
+          <p className="settings-hint">Для событий время отсчитывается от начала, для задач — от дедлайна. О просроченных задачах напоминаем каждые 2 часа до выполнения.</p>
         </div>
 
         <div className="settings-section">
@@ -312,14 +318,6 @@ export default function SettingsScreen({
           )}
         </div>
 
-        <div className="settings-section">
-          <div className="settings-label">Уведомления</div>
-          <PushRow notify={notify} />
-          <ReminderEditor label="События" offsets={settings.event_offsets} busy={settingsBusy} onSave={v => saveReminders('event_offsets',v)} />
-          <ReminderEditor label="Задачи" offsets={settings.task_offsets} busy={settingsBusy} onSave={v => saveReminders('task_offsets',v)} />
-          <p className="settings-hint">Для событий время отсчитывается от начала, для задач — от дедлайна. О просроченных задачах напоминаем каждые 2 часа до выполнения.</p>
-        </div>
-
         <button
           className="logout-btn"
           onClick={() => {
@@ -329,6 +327,25 @@ export default function SettingsScreen({
         >
           Выйти из аккаунта
         </button>
+      {profileOpen && <Modal title="Настройки аккаунта" onClose={() => { if (!saving) setProfileOpen(false); }}>
+          <div className="form-card" >
+            <label className="field">
+              <span>Имя пользователя</span>
+              <input value={name} onChange={(e) => setName(e.target.value)} maxLength={100} />
+            </label>
+            <label className="field">
+              <span>Почта</span>
+              <input value={email} onChange={(e) => setEmail(e.target.value)} inputMode="email" />
+            </label>
+            <label className="field"><span>Текущий пароль</span><input type="password" autoComplete="current-password" value={currentPassword} onChange={e=>setCurrentPassword(e.target.value)} /><small>Нужен для изменения почты или пароля</small></label>
+            <label className="field"><span>Новый пароль</span><input type="password" autoComplete="new-password" value={newPassword} onChange={e=>setNewPassword(e.target.value)} maxLength={72} placeholder="Оставьте пустым, чтобы сохранить текущий" /></label>
+            {newPassword && <label className="field"><span>Повтор нового пароля</span><input type="password" autoComplete="new-password" value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} maxLength={72} /></label>}
+            <FieldError text={formErr} />
+            <button className="btn-primary" onClick={() => void saveProfile()} disabled={saving}>
+              {saving ? 'Сохранение…' : 'Сохранить профиль'}
+            </button>
+          </div>
+      </Modal>}
       </div>
     </div>
   );

@@ -279,16 +279,20 @@ func TestUpdateProfile_Success(t *testing.T) {
 
 	userID := uuid.New()
 	user := &users_domain.User{
-		ID:           userID,
-		Username:     "oldname",
-		Email:        "old@example.com",
-		PasswordHash: "hash",
+		ID:       userID,
+		Username: "oldname",
+		Email:    "old@example.com",
+		PasswordHash: func() string {
+			h, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.MinCost)
+			return string(h)
+		}(),
 	}
 	repo.Create(context.Background(), user)
 
 	input := dtos.UpdateProfileInput{
-		Username: strPtr("newname"),
-		Email:    strPtr("new@example.com"),
+		CurrentPassword: strPtr("password123"),
+		Username:        strPtr("newname"),
+		Email:           strPtr("new@example.com"),
 	}
 
 	resp, err := svc.UpdateProfile(context.Background(), userID, input)
@@ -339,3 +343,5 @@ func TestLogin_UnknownUsername_Unauthorized(t *testing.T) {
 		t.Errorf("expected ErrUnauthorized, got %v", err)
 	}
 }
+
+func (s *mockJwtService) RevokeAllUserSessions(context.Context, uuid.UUID) error { return nil }

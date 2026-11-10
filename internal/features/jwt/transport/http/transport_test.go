@@ -96,3 +96,5 @@ func contains(s, sub string) bool {
 		return false
 	})()
 }
+
+func (s *mockJwtSvc) RevokeAllUserSessions(context.Context, uuid.UUID) error { return nil }
