@@ -8,7 +8,7 @@ html, body { height: 100%; }
 /* Страховка от горизонтального распирания на узких экранах */
 body, .phone, .phone-screen { overflow-x: clip; }
 body {
-  font-family: 'Manrope', system-ui, -apple-system, sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background: radial-gradient(circle at 30% 10%, var(--page-bg-2), var(--page-bg-1) 70%);
   min-height: 100vh;
   min-height: 100dvh;
@@ -267,9 +267,9 @@ input[type='range'].zoom::-moz-range-thumb {
 .theme-swatch.tl { background: linear-gradient(180deg, #f6e3ee, #d3bfe6); }
 .theme-swatch.tu { background: linear-gradient(135deg, #dfe2c9, #c8caa8); }
 /* Миниатюры реальных фонов прямо в карточках выбора темы */
-.theme-swatch.tf { background-image: url('/themes/forest.png'); background-size: cover; background-position: center; }
-.theme-swatch.tc { background-image: url('/themes/coffee.png'); background-size: cover; background-position: center; }
-.theme-swatch.tl { background-image: url('/themes/lavender.png'); background-size: cover; background-position: center; }
+.theme-swatch.tf { background-image: url('./assets/themes/forest.webp'); background-size: cover; background-position: center; }
+.theme-swatch.tc { background-image: url('./assets/themes/coffee.webp'); background-size: cover; background-position: center; }
+.theme-swatch.tl { background-image: url('./assets/themes/lavender.webp'); background-size: cover; background-position: center; }
 .theme-name { font-size: 12px; font-weight: 700; color: var(--text); display: block; }
 .custom-controls { margin-top: 10px; display: none; gap: 8px; flex-wrap: wrap; }
 .custom-controls.show { display: flex; flex-direction: column; flex-wrap: nowrap; }
@@ -642,3 +642,4 @@ button:disabled { cursor: wait; opacity: .6; }
  .report-deadlines .n { min-width: 28px; }
  .report-deadlines .l { margin: 0; }
 }
+.offline-banner { position: relative; z-index: 8; padding: 9px 16px; background: #fff1cf; color: #624712; text-align: center; font-size: 13px; }

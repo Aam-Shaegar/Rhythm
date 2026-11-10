@@ -46,6 +46,13 @@ function Shell() {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [clock, setClock] = useState(() => new Date());
   const [notices, setNotices] = useState<Notice[]>([]);
+  const [offline, setOffline] = useState(!navigator.onLine);
+  useEffect(() => {
+    const on = () => { setOffline(false); window.dispatchEvent(new Event('rhytm:data-changed')); };
+    const off = () => setOffline(true);
+    window.addEventListener('online', on); window.addEventListener('offline', off);
+    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); };
+  }, []);
   const [notifOpen, setNotifOpen] = useState(false);
   const btnRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [highlight, setHighlight] = useState({ left: 6, width: 52 });
@@ -223,6 +230,7 @@ function Shell() {
         </aside>
 
         <div className="main-col">
+          {offline && <div className="offline-banner" role="status">Нет соединения. Подключитесь к интернету, чтобы обновить данные.</div>}
           <header className="topbar">
             <div className="topbar-date">
               {dateLabel} · {clockLabel}

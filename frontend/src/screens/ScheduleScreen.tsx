@@ -151,6 +151,9 @@ export default function ScheduleScreen({ notify }: { notify: (k: 'ok' | 'err', t
 
   useEffect(() => {
     void load();
+    const refresh = () => void load();
+    window.addEventListener('online', refresh);
+    return () => window.removeEventListener('online', refresh);
   }, [load]);
 
   const weekDays = useMemo(() => {

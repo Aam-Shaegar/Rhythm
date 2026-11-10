@@ -9,10 +9,10 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   </React.StrictMode>,
 );
 
-// Service worker нужен только для Web Push (страницы не кэшируем).
-if ('serviceWorker' in navigator) {
+// Cache the application shell and assets; private API responses stay out of the worker cache.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {
+    navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).catch(() => {
       // тихий фолбэк: пуши просто будут недоступны
     });
   });

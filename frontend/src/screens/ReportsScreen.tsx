@@ -3,8 +3,10 @@ import { apiFetch } from '../api/client';
 import type { DailyReport } from '../api/types';
 import { EmptyBlock, ErrorBlock, Spinner } from '../components/ui';
 
+function localDate(d: Date): string { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+
 function isoDate(d: Date): string {
-  return d.toISOString().slice(0, 10);
+  return localDate(d);
 }
 
 export default function ReportsScreen() {
@@ -54,6 +56,9 @@ export default function ReportsScreen() {
 
   useEffect(() => {
     void load();
+    const refresh = () => void load();
+    window.addEventListener('online', refresh);
+    return () => window.removeEventListener('online', refresh);
   }, [load]);
 
   const agg = useMemo(() => {

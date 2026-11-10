@@ -60,19 +60,24 @@ export function Modal({
   onClose: () => void;
   children: React.ReactNode;
 }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
-
-  // a11y: фокус на первое поле при открытии.
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   const boxRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    const el = boxRef.current?.querySelector<HTMLElement>('input, textarea, select, button:not(.icon-btn)');
-    el?.focus({ preventScroll: true });
+    const previous = document.activeElement as HTMLElement | null;
+    const focusable = () => Array.from(boxRef.current?.querySelectorAll<HTMLElement>('input:not(:disabled), textarea:not(:disabled), select:not(:disabled), button:not(:disabled), [href], [tabindex="0"]') ?? []);
+    const fields = focusable();
+    (fields.find(el => el.tagName === 'INPUT') ?? fields[0])?.focus({ preventScroll: true });
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.preventDefault(); closeRef.current(); }
+      if (e.key === 'Tab') {
+        const items = focusable(); const first = items[0]; const last = items[items.length-1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => { window.removeEventListener('keydown', onKey); previous?.focus({ preventScroll: true }); };
   }, []);
 
   return (

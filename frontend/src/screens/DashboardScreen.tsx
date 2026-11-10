@@ -5,6 +5,8 @@ import type { DailyReport, EventItem, Task } from '../api/types';
 import type { Tab } from '../nav';
 import { EmptyBlock, ErrorBlock, Spinner } from '../components/ui';
 
+function localDate(d: Date): string { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+
 function startOfDay(d: Date): Date {
   const c = new Date(d);
   c.setHours(0, 0, 0, 0);
@@ -48,7 +50,7 @@ export default function DashboardScreen({
     setLoading(true);
     setError('');
     try {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = localDate(new Date());
       const from = startOfDay(new Date()).toISOString();
       const to = new Date(Date.now() + 7 * 864e5).toISOString();
       const [t, e, r] = await Promise.all([
@@ -68,6 +70,9 @@ export default function DashboardScreen({
 
   useEffect(() => {
     void load();
+    const refresh = () => void load();
+    window.addEventListener('online', refresh);
+    return () => window.removeEventListener('online', refresh);
   }, [load]);
 
   const now = useMemo(() => new Date(), []);

@@ -22,8 +22,8 @@ import {
   type CustomPalette,
 } from '../theme';
 
-// Фото храним как dataURL в localStorage: лимит ~2.5 МБ, иначе квота.
-const MAX_PHOTO_BYTES = 2.5 * 1024 * 1024;
+// Resize and compress photos before storing them locally.
+const MAX_PHOTO_BYTES = 20 * 1024 * 1024;
 
 
 
@@ -153,32 +153,22 @@ export default function SettingsScreen({
     notify('ok', 'Цвета сброшены');
   }
 
-  function onPhoto(file: File | undefined) {
+  async function onPhoto(file: File | undefined) {
     if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      notify('err', 'Нужен файл-картинка');
-      return;
-    }
-    if (file.size > MAX_PHOTO_BYTES) {
-      notify('err', 'Картинка тяжелее 2.5 МБ — сожмите её и попробуйте снова');
-      return;
-    }
-    if (photo) URL.revokeObjectURL(photo);
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = String(reader.result ?? '');
-      try {
-        localStorage.setItem('rhytm.theme.photo', dataUrl);
-      } catch {
-        notify('err', 'Не хватило места в хранилище — уберите старое фото');
-        return;
-      }
-      setPhoto(dataUrl);
-      onThemeChanged();
-      notify('ok', 'Фоновая картинка установлена');
-    };
-    reader.onerror = () => notify('err', 'Не получилось прочитать файл');
-    reader.readAsDataURL(file);
+    if (!file.type.startsWith('image/')) { notify('err', 'Нужен файл-картинка'); return; }
+    if (file.size > MAX_PHOTO_BYTES) { notify('err', 'Выберите изображение до 20 МБ'); return; }
+    const url = URL.createObjectURL(file);
+    try {
+      const img = new Image(); img.src = url; await img.decode();
+      const scale = Math.min(1, 1600 / Math.max(img.width,img.height));
+      const canvas = document.createElement('canvas'); canvas.width = Math.max(1,Math.round(img.width*scale)); canvas.height = Math.max(1,Math.round(img.height*scale));
+      const context = canvas.getContext('2d'); if (!context) throw new Error('canvas unavailable');
+      context.drawImage(img,0,0,canvas.width,canvas.height);
+      const dataUrl = canvas.toDataURL('image/webp', .8);
+      localStorage.setItem('rhytm.theme.photo',dataUrl);
+      setPhoto(dataUrl); onThemeChanged(); notify('ok','Фоновая картинка установлена');
+    } catch { notify('err','Не удалось обработать изображение или не хватило места в хранилище'); }
+    finally { URL.revokeObjectURL(url); }
   }
 
   function removePhoto() {
@@ -301,7 +291,7 @@ export default function SettingsScreen({
                     className="file-hidden"
                     type="file"
                     accept="image/*"
-                    onChange={(e) => onPhoto(e.target.files?.[0])}
+                    onChange={(e) => void onPhoto(e.target.files?.[0])}
                     aria-label="Загрузить фоновую картинку"
                   />
                 </label>

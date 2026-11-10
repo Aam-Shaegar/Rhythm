@@ -58,6 +58,9 @@ export default function TasksScreen({ notify }: { notify: (k: 'ok' | 'err', t: s
 
   useEffect(() => {
     void load();
+    const refresh = () => void load();
+    window.addEventListener('online', refresh);
+    return () => window.removeEventListener('online', refresh);
   }, [load]);
 
   const visible = useMemo(() => {

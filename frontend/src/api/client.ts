@@ -30,11 +30,13 @@ export function getRefreshToken(): string | null {
 }
 
 export function setTokens(access: string, refresh?: string): void {
+  if (getAccessToken() !== access) invalidateCache();
   localStorage.setItem(ACCESS_KEY, access);
   if (refresh !== undefined) localStorage.setItem(REFRESH_KEY, refresh);
 }
 
 export function clearTokens(): void {
+  invalidateCache();
   localStorage.removeItem(ACCESS_KEY);
   localStorage.removeItem(REFRESH_KEY);
 }
@@ -94,7 +96,7 @@ export function refreshAccessToken(): Promise<string> {
   return refreshing;
 }
 
-export async function apiFetch<T>(path: string, init: RequestInit = {}, retry = true): Promise<T> {
+async function request<T>(path: string, init: RequestInit = {}, retry = true): Promise<T> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...((init.headers as Record<string, string> | undefined) ?? {}),
@@ -125,7 +127,7 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}, retry = 
     try {
       const latest = getAccessToken();
       if (!latest || latest === token) await refreshAccessToken();
-      return apiFetch<T>(path, init, false);
+      return request<T>(path, init, false);
     } catch (e) {
       if (e instanceof SessionExpiredError) {
         clearTokens();
@@ -147,4 +149,40 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}, retry = 
     throw Object.assign(new Error(error.message), error);
   }
   return body as T;
+}
+
+const responseCache = new Map<string, { at: number; value: unknown }>();
+const pendingGets = new Map<string, Promise<unknown>>();
+let cacheEpoch = 0;
+export function invalidateCache(): void { cacheEpoch++; responseCache.clear(); pendingGets.clear(); }
+function accountKey(): string {
+ const token = getAccessToken();
+ if (!token) return 'cookie-session';
+ try { return JSON.parse(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))).uid; }
+ catch { return token; }
+}
+export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+ const method = (init.method ?? 'GET').toUpperCase();
+ if (method !== 'GET') {
+  invalidateCache();
+  const result = await request<T>(path, init);
+  invalidateCache();
+  if (!path.startsWith('/auth/')) window.dispatchEvent(new Event('rhytm:data-changed'));
+  return result;
+ }
+ const key = `${accountKey()}:${path}`;
+ const cached = responseCache.get(key);
+ if (cached && Date.now() - cached.at < 15000) return structuredClone(cached.value) as T;
+ const existing = pendingGets.get(key);
+ if (existing) return structuredClone(await existing) as T;
+ const epoch = cacheEpoch;
+ const promise = request<T>(path, init).then(value => {
+  if (epoch === cacheEpoch) {
+   if (responseCache.size >= 50) responseCache.delete(responseCache.keys().next().value!);
+   responseCache.set(key, { at: Date.now(), value: structuredClone(value) });
+  }
+  return value;
+ }).finally(() => { if (pendingGets.get(key) === promise) pendingGets.delete(key); });
+ pendingGets.set(key, promise);
+ return structuredClone(await promise);
 }
