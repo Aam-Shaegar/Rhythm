@@ -7,6 +7,8 @@ import (
 )
 
 type TaskResponse struct {
+	IsOverdue      bool            `json:"is_overdue"`
+	CompletedLate  bool            `json:"completed_late"`
 	ID             uuid.UUID       `json:"id"`
 	Title          string          `json:"title"`
 	Description    *string         `json:"description,omitempty"`

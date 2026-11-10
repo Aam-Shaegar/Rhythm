@@ -21,6 +21,15 @@ type Task struct {
 	UpdatedAt      time.Time
 }
 
+// CompletedLate preserves the distinction between finishing a task and meeting its deadline.
+func (t *Task) CompletedLate() bool {
+	return t.IsCompleted && t.CompletedAt != nil && t.CompletedAt.After(t.DueAt)
+}
+
+func (t *Task) OverdueAt(now time.Time) bool {
+	return t.CompletedLate() || (!t.IsCompleted && t.DueAt.Before(now))
+}
+
 type RecurrenceType string
 
 const (

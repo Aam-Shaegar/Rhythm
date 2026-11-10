@@ -74,7 +74,7 @@ func (r *TasksRepositoryImpl) GetByUserID(ctx context.Context, filter domain.Tas
 		}
 	}
 
-	baseSQL += " ORDER BY due_at ASC"
+	baseSQL += " ORDER BY is_completed ASC, due_at ASC, id ASC"
 
 	if filter.Limit > 0 {
 		baseSQL += " LIMIT $" + strconv.Itoa(argIdx)

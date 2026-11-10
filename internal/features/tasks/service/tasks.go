@@ -284,6 +284,8 @@ func (s *TasksServiceImpl) createTaskReminders(ctx context.Context, task *domain
 
 func (s *TasksServiceImpl) toResponse(task *domain.Task) *domain.TaskResponse {
 	return &domain.TaskResponse{
+		IsOverdue:      task.OverdueAt(time.Now().UTC()),
+		CompletedLate:  task.CompletedLate(),
 		ID:             task.ID,
 		Title:          task.Title,
 		Description:    task.Description,

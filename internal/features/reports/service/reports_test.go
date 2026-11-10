@@ -184,3 +184,20 @@ func TestDailyReport_JSONSnakeCase(t *testing.T) {
 		}
 	}
 }
+
+func TestDailyReport_SeparatesLateCompletion(t *testing.T) {
+	due := time.Now().Add(-time.Hour)
+	early, late := due.Add(-time.Minute), due.Add(time.Minute)
+	tr := &mockTasksRepo{tasks: []*tasks_domain.Task{
+		{DueAt: due, IsCompleted: true, CompletedAt: &early},
+		{DueAt: due, IsCompleted: true, CompletedAt: &late},
+		{DueAt: due},
+	}}
+	r, err := NewReportsService(tr, &mockEventsRepo{}).GetDailyReport(context.Background(), uuid.New(), due)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.CompletedTasks != 2 || r.CompletedOnTime != 1 || r.CompletedLate != 1 || r.OverdueTasks != 1 || r.OnTimePct != float64(1)/3*100 {
+		t.Fatalf("wrong deadline counts: %+v", r)
+	}
+}

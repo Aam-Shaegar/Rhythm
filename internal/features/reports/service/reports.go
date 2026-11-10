@@ -26,7 +26,7 @@ func NewReportsService(tasksRepo tasks_postgres.TasksRepository, eventsRepo even
 
 func (s *ReportsServiceImpl) GetDailyReport(ctx context.Context, userID uuid.UUID, date time.Time) (*domain.DailyReport, error) {
 	startOfDay := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
-	endOfDay := startOfDay.Add(24 * time.Hour)
+	endOfDay := startOfDay.AddDate(0, 0, 1).Add(-time.Nanosecond)
 
 	tasks, err := s.tasksRepo.GetByUserID(ctx, tasks_domain.TaskFilter{
 		UserID:   userID,
@@ -48,9 +48,17 @@ func (s *ReportsServiceImpl) GetDailyReport(ctx context.Context, userID uuid.UUI
 
 	totalTasks := len(tasks)
 	completedTasks := 0
+	completedLate, overdueTasks := 0, 0
+	now := time.Now().UTC()
 	for _, t := range tasks {
 		if t.IsCompleted {
 			completedTasks++
+		}
+		if t.CompletedLate() {
+			completedLate++
+		}
+		if !t.IsCompleted && t.OverdueAt(now) {
+			overdueTasks++
 		}
 	}
 
@@ -59,7 +67,13 @@ func (s *ReportsServiceImpl) GetDailyReport(ctx context.Context, userID uuid.UUI
 		completionPct = float64(completedTasks) / float64(totalTasks) * 100
 	}
 
+	onTime := completedTasks - completedLate
+	var onTimePct float64
+	if totalTasks > 0 {
+		onTimePct = float64(onTime) / float64(totalTasks) * 100
+	}
 	return &domain.DailyReport{
+		CompletedOnTime: onTime, CompletedLate: completedLate, OverdueTasks: overdueTasks, OnTimePct: onTimePct,
 		Date:           date,
 		TotalTasks:     totalTasks,
 		CompletedTasks: completedTasks,

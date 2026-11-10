@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiFetch } from '../api/client';
+import { compareTasks, taskStatus } from '../tasks';
 import type { DailyReport, EventItem, Task } from '../api/types';
 import type { Tab } from '../nav';
 import { EmptyBlock, ErrorBlock, Spinner } from '../components/ui';
@@ -74,10 +75,10 @@ export default function DashboardScreen({
     const t = new Date();
     return tasks
       .filter((x) => sameDay(new Date(x.due_at), t))
-      .sort((a, b) => +new Date(a.due_at) - +new Date(b.due_at));
+      .sort(compareTasks);
   }, [tasks]);
   const overdue = useMemo(
-    () => tasks.filter((x) => !x.is_completed && new Date(x.due_at).getTime() < startOfDay(now).getTime()),
+    () => tasks.filter((x) => !x.is_completed && new Date(x.due_at).getTime() < now.getTime()),
     [tasks, now],
   );
   const upcoming = useMemo(
@@ -197,6 +198,7 @@ export default function DashboardScreen({
                           <span className="task-title">{t.title}</span>
                           <span className="task-meta">
                             <span>{fmtTime(t.due_at)}</span>
+ {taskStatus(t) && <span className="overdue">{taskStatus(t)}</span>}
                           </span>
                         </button>
                       </div>

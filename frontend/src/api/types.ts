@@ -28,6 +28,8 @@ export interface Task {
   description?: string | null;
   due_at: string;
   is_completed: boolean;
+  is_overdue: boolean;
+  completed_late: boolean;
   completed_at?: string | null;
   recurrence_type?: RecurrenceType | null;
   recurrence_end?: string | null;
@@ -47,6 +49,10 @@ export interface EventItem {
 }
 
 export interface DailyReport {
+  completed_on_time: number;
+  completed_late: number;
+  overdue_tasks: number;
+  on_time_pct: number;
   date: string;
   total_tasks: number;
   completed_tasks: number;

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiFetch } from '../api/client';
+import { compareTasks, taskStatus } from '../tasks';
 import type { RecurrenceType, Task } from '../api/types';
 import { EmptyBlock, ErrorBlock, ConfirmDialog, FieldError, Modal, Spinner } from '../components/ui';
 
@@ -27,11 +28,6 @@ const REC_LABEL: Record<string, string> = {
   yearly: 'ежегодно',
 };
 
-function isOverdue(iso: string, now = new Date()): boolean {
-  const day = new Date(now);
-  day.setHours(0, 0, 0, 0);
-  return new Date(iso).getTime() < day.getTime();
-}
 
 interface ModalState {
   mode: 'create' | 'edit';
@@ -69,7 +65,7 @@ export default function TasksScreen({ notify }: { notify: (k: 'ok' | 'err', t: s
     return tasks
       .filter((t) => (filter === 'all' ? true : filter === 'done' ? t.is_completed : !t.is_completed))
       .filter((t) => (q ? t.title.toLowerCase().includes(q) || (t.description ?? '').toLowerCase().includes(q) : true))
-      .sort((a, b) => +new Date(a.due_at) - +new Date(b.due_at));
+      .sort(compareTasks);
   }, [tasks, filter, query]);
 
   async function toggleComplete(t: Task) {
@@ -151,7 +147,7 @@ export default function TasksScreen({ notify }: { notify: (k: 'ok' | 'err', t: s
                 <span className="task-title">{t.title}</span>
                 <span className="task-meta">
                   <span>{fmtDue(t.due_at)}</span>
-                  {!t.is_completed && isOverdue(t.due_at) && <span className="overdue">Просрочена</span>}
+                  {taskStatus(t) && <span className="overdue">{taskStatus(t)}</span>}
                   {t.recurrence_type && <span> · повтор {REC_LABEL[t.recurrence_type] ?? t.recurrence_type}</span>}
                 </span>
                 {t.description && <span className="task-desc">{t.description}</span>}

@@ -60,17 +60,19 @@ export default function ReportsScreen() {
     if (mode !== 'period' || period.length === 0) return null;
     const total = period.reduce((s, r) => s + r.total_tasks, 0);
     const done = period.reduce((s, r) => s + r.completed_tasks, 0);
+    const late = period.reduce((s, r) => s + r.completed_late, 0);
+    const overdue = period.reduce((s, r) => s + r.overdue_tasks, 0);
     const ev = period.reduce((s, r) => s + r.events_count, 0);
-    return { total, done, pct: total ? (done / total) * 100 : 0, ev };
+    return { total, done, late, overdue, pct: total ? (done / total) * 100 : 0, ev };
   }, [mode, period]);
 
-  const shown: { total: number; done: number; pct: number; events: number } | null = useMemo(() => {
+  const shown: { total: number; done: number; pct: number; events: number; late: number; overdue: number } | null = useMemo(() => {
     if (mode === 'day') {
       if (!daily) return null;
-      return { total: daily.total_tasks, done: daily.completed_tasks, pct: daily.completion_pct, events: daily.events_count };
+      return { total: daily.total_tasks, done: daily.completed_tasks, pct: daily.completion_pct, events: daily.events_count, late: daily.completed_late, overdue: daily.overdue_tasks };
     }
     if (!agg) return null;
-    return { total: agg.total, done: agg.done, pct: agg.pct, events: agg.ev };
+    return { total: agg.total, done: agg.done, pct: agg.pct, events: agg.ev, late: agg.late, overdue: agg.overdue };
   }, [mode, daily, agg]);
 
   const pct = Math.max(0, Math.min(100, Math.round(shown?.pct ?? 0)));
@@ -134,6 +136,12 @@ export default function ReportsScreen() {
                 <div className="l">Событий</div>
               </div>
             </div>
+            <div className="stat-row report-deadlines">
+              <div className="stat-card"><div className="n">{shown.done - shown.late}</div><div className="l">Выполнено вовремя</div></div>
+              <div className="stat-card"><div className="n overdue">{shown.late}</div><div className="l">Выполнено с опозданием</div></div>
+              <div className="stat-card"><div className="n overdue">{shown.overdue}</div><div className="l">Просрочено, не выполнено</div></div>
+            </div>
+            <p className="report-note">Общий процент учитывает все выполненные задачи. Соблюдение сроков: {shown.total ? Math.round((shown.done - shown.late) / shown.total * 100) : 0}%. Задачи сгруппированы по дате дедлайна.</p>
             {mode === 'period' && (
               <div className="period-list">
                 {period.map((r) => (
@@ -143,7 +151,7 @@ export default function ReportsScreen() {
                       <span style={{ width: `${Math.round(r.completion_pct)}%` }} />
                     </span>
                     <span className="period-num">
-                      {r.completed_tasks}/{r.total_tasks}
+                      {r.completed_tasks}/{r.total_tasks} · опоздали: {r.completed_late}
                     </span>
                   </div>
                 ))}
