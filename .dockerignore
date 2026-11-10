@@ -1,0 +1,9 @@
+.git
+.env
+.env.*
+frontend
+logs
+docs
+server
+build/*
+!build/rhytm

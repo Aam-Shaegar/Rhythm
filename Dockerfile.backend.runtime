@@ -1,15 +1,10 @@
 FROM alpine:3.22
 
-RUN apk add --no-cache \
-    ca-certificates \
-    tzdata
-
+RUN apk add --no-cache ca-certificates tzdata \
+    && addgroup -S app && adduser -S app -G app
 WORKDIR /app
-
-COPY build/rhytm /app/rhytm
-
-RUN chmod +x /app/rhytm
-
+COPY --chown=app:app build/rhytm /app/rhytm
+RUN chmod +x /app/rhytm && mkdir -p /app/logs && chown app:app /app/logs
+USER app
 EXPOSE 8080
-
 ENTRYPOINT ["/app/rhytm"]

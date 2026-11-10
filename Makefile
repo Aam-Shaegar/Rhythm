@@ -40,7 +40,8 @@ run:
 backend-build:
 	@mkdir -p build
 	@echo "Building backend binary for Linux..."
-	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o build/rhytm ./cmd/server
+	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -buildvcs=false -trimpath -ldflags="-s -w" -o build/rhytm ./cmd/server
+	@shasum -a 256 build/rhytm > build/rhytm.sha256
 	@echo "Binary created at build/rhytm"
 
 backend-run:
