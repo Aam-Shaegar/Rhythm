@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
+	core_errors "github.com/Aam-Shaegar/Rhythm/internal/core/errors"
 	"net/url"
 	"time"
 
@@ -30,75 +32,51 @@ func (s *RemindersServiceImpl) SetLogger(l Logger) {
 	s.log = l
 }
 
-func (s *RemindersServiceImpl) ScheduleForEvent(ctx context.Context, event *events_domain.Event, userID uuid.UUID) error {
-	reminders := []*domain.Reminder{
-		{
-			UserID:     userID,
-			EntityType: "event",
-			EntityID:   event.ID,
-			Title:      event.Title,
-			RemindAt:   event.StartAt.Add(-15 * time.Minute),
-		},
-		{
-			UserID:     userID,
-			EntityType: "event",
-			EntityID:   event.ID,
-			Title:      event.Title,
-			RemindAt:   event.StartAt.Add(-1 * time.Hour),
-		},
-		{
-			UserID:     userID,
-			EntityType: "event",
-			EntityID:   event.ID,
-			Title:      event.Title,
-			RemindAt:   event.StartAt.Add(-24 * time.Hour),
-		},
+func (s *RemindersServiceImpl) GetSettings(ctx context.Context, uid uuid.UUID) (domain.ReminderSettings, error) {
+	if repo, ok := s.repo.(SettingsRepository); ok {
+		return repo.GetSettings(ctx, uid)
 	}
-
-	var validReminders []*domain.Reminder
-	now := time.Now().UTC()
-	for _, r := range reminders {
-		if r.RemindAt.After(now) {
-			validReminders = append(validReminders, r)
-		}
-	}
-
-	if len(validReminders) > 0 {
-		return s.repo.CreateReminders(ctx, validReminders)
-	}
-	return nil
+	return domain.DefaultSettings(), nil
 }
 
-func (s *RemindersServiceImpl) ScheduleForTask(ctx context.Context, task *tasks_domain.Task, userID uuid.UUID) error {
-	reminders := []*domain.Reminder{
-		{
-			UserID:     userID,
-			EntityType: "task",
-			EntityID:   task.ID,
-			Title:      task.Title,
-			RemindAt:   task.DueAt.Add(-1 * time.Hour),
-		},
-		{
-			UserID:     userID,
-			EntityType: "task",
-			EntityID:   task.ID,
-			Title:      task.Title,
-			RemindAt:   task.DueAt.Add(-24 * time.Hour),
-		},
+func (s *RemindersServiceImpl) UpdateSettings(ctx context.Context, uid uuid.UUID, input domain.UpdateReminderSettingsInput) (domain.ReminderSettings, error) {
+	if err := input.Validate(); err != nil {
+		return domain.ReminderSettings{}, fmt.Errorf("%v: %w", err, core_errors.ErrInvalidArgument)
 	}
+	repo, ok := s.repo.(SettingsRepository)
+	if !ok {
+		return domain.ReminderSettings{}, errors.New("settings repository unavailable")
+	}
+	return repo.SaveSettings(ctx, uid, input)
+}
 
-	var validReminders []*domain.Reminder
+func (s *RemindersServiceImpl) schedule(ctx context.Context, uid, id uuid.UUID, kind, title string, at time.Time, offsets []int) error {
+	var reminders []*domain.Reminder
 	now := time.Now().UTC()
-	for _, r := range reminders {
-		if r.RemindAt.After(now) {
-			validReminders = append(validReminders, r)
+	for _, offset := range offsets {
+		remindAt := at.Add(-time.Duration(offset) * time.Minute)
+		if remindAt.After(now) {
+			reminders = append(reminders, &domain.Reminder{UserID: uid, EntityID: id, EntityType: kind, Title: title, RemindAt: remindAt})
 		}
 	}
-
-	if len(validReminders) > 0 {
-		return s.repo.CreateReminders(ctx, validReminders)
+	return s.repo.CreateReminders(ctx, reminders)
+}
+func (s *RemindersServiceImpl) ScheduleForEvent(ctx context.Context, event *events_domain.Event, uid uuid.UUID) error {
+	settings, err := s.GetSettings(ctx, uid)
+	if err != nil {
+		return err
 	}
-	return nil
+	return s.schedule(ctx, uid, event.ID, "event", event.Title, event.StartAt, settings.EventOffsets)
+}
+func (s *RemindersServiceImpl) ScheduleForTask(ctx context.Context, task *tasks_domain.Task, uid uuid.UUID) error {
+	if task.IsCompleted {
+		return nil
+	}
+	settings, err := s.GetSettings(ctx, uid)
+	if err != nil {
+		return err
+	}
+	return s.schedule(ctx, uid, task.ID, "task", task.Title, task.DueAt, settings.TaskOffsets)
 }
 
 func (s *RemindersServiceImpl) UpdateRemindersForEvent(ctx context.Context, event *events_domain.Event, userID uuid.UUID) error {
@@ -124,6 +102,11 @@ func (s *RemindersServiceImpl) DeleteRemindersForTask(ctx context.Context, taskI
 }
 
 func (s *RemindersServiceImpl) ProcessPendingReminders(ctx context.Context, before time.Time, limit int) (int, error) {
+	if repo, ok := s.repo.(SettingsRepository); ok {
+		if err := repo.QueueOverdue(ctx, before); err != nil {
+			return 0, err
+		}
+	}
 	reminders, err := s.repo.GetPending(ctx, before, limit)
 	if err != nil {
 		return 0, err
@@ -133,65 +116,39 @@ func (s *RemindersServiceImpl) ProcessPendingReminders(ctx context.Context, befo
 		return 0, nil
 	}
 
-	ids := make([]uuid.UUID, len(reminders))
-	for i, r := range reminders {
-		ids[i] = r.ID
-	}
-
-	if err := s.repo.MarkSent(ctx, ids); err != nil {
-		return 0, err
-	}
-
-	s.deliverPushes(ctx, reminders)
-
-	return len(reminders), nil
-}
-
-func (s *RemindersServiceImpl) deliverPushes(ctx context.Context, reminders []*domain.Reminder) {
-	if s.sender == nil {
-		return
-	}
-
-	byUser := make(map[uuid.UUID][]*domain.Reminder)
-	for _, r := range reminders {
-		byUser[r.UserID] = append(byUser[r.UserID], r)
-	}
-
-	for userID, rs := range byUser {
-		subs, err := s.repo.GetSubscriptionsByUser(ctx, userID)
-		if err != nil {
-			s.warn("push subscriptions lookup failed", zap.String("user_id", userID.String()), zap.Error(err))
-			continue
-		}
-		if len(subs) == 0 {
-			s.debug("no push subscriptions, skipping delivery", zap.String("user_id", userID.String()), zap.Int("reminders", len(rs)))
-			continue
-		}
-		for _, r := range rs {
-			payload := BuildPushPayload(r)
-			for _, sub := range subs {
-				if err := s.sender.Send(ctx, sub, payload); err != nil {
-					if errors.Is(err, ErrSubscriptionGone) {
-						s.debug("push endpoint expired, deleting subscription",
-							zap.String("user_id", userID.String()),
-							zap.String("endpoint_host", endpointHost(sub.Endpoint)))
-						_ = s.repo.DeleteSubscriptionByEndpoint(ctx, userID, sub.Endpoint)
-					} else {
-						s.warn("push delivery failed",
-							zap.String("user_id", userID.String()),
-							zap.String("endpoint_host", endpointHost(sub.Endpoint)),
-							zap.String("reminder_id", r.ID.String()),
-							zap.Error(err))
-					}
-				} else {
-					s.debug("push delivered",
-						zap.String("user_id", userID.String()),
-						zap.String("endpoint_host", endpointHost(sub.Endpoint)),
-						zap.String("reminder_id", r.ID.String()))
-				}
+	// Only acknowledge deliveries after a successful push. Claimed rows retry after lease expiry.
+	for _, rem := range reminders {
+		if s.deliverPush(ctx, rem) {
+			if err := s.repo.MarkSent(ctx, []uuid.UUID{rem.ID}); err != nil {
+				return 0, err
 			}
 		}
 	}
+	return len(reminders), nil
+}
+
+func (s *RemindersServiceImpl) deliverPush(ctx context.Context, rem *domain.Reminder) bool {
+	if s.sender == nil {
+		return false
+	}
+	subs, err := s.repo.GetSubscriptionsByUser(ctx, rem.UserID)
+	if err != nil {
+		s.warn("push subscriptions lookup failed", zap.Error(err))
+		return false
+	}
+	// No devices subscribed: nothing to deliver. Future subscriptions receive future reminders.
+	success := true
+	for _, sub := range subs {
+		if err := s.sender.Send(ctx, sub, BuildPushPayload(rem)); err != nil {
+			if errors.Is(err, ErrSubscriptionGone) {
+				_ = s.repo.DeleteSubscriptionByEndpoint(ctx, rem.UserID, sub.Endpoint)
+			} else {
+				s.warn("push delivery failed", zap.Error(err), zap.String("reminder_id", rem.ID.String()))
+				success = false
+			}
+		}
+	}
+	return success
 }
 
 func (s *RemindersServiceImpl) SavePushSubscription(ctx context.Context, userID uuid.UUID, input domain.PushSubscriptionInput) error {
@@ -246,7 +203,7 @@ func (s *RemindersServiceImpl) StartWorker(ctx context.Context, interval time.Du
 				logger.Debug("reminders worker stopped")
 				return
 			case <-ticker.C:
-				processed, err := s.ProcessPendingReminders(ctx, time.Now().UTC().Add(30*time.Second), 100)
+				processed, err := s.ProcessPendingReminders(ctx, time.Now().UTC(), 100)
 				if err != nil {
 					logger.Error("failed to process reminders", zap.Error(err))
 				} else if processed > 0 {

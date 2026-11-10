@@ -61,13 +61,8 @@ export interface DailyReport {
 }
 
 export interface ReminderSettings {
-  event_reminders: boolean;
-  task_reminders: boolean;
-  event_before_15m: boolean;
-  event_before_1h: boolean;
-  event_before_24h: boolean;
-  task_before_1h: boolean;
-  task_before_24h: boolean;
+  event_offsets: number[];
+  task_offsets: number[];
 }
 
 export interface ApiError {

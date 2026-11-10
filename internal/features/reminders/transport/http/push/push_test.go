@@ -123,3 +123,10 @@ func TestVapidKey_Ok_And_Missing(t *testing.T) {
 		t.Fatalf("unconfigured push must be 404, got %d", w2.Code)
 	}
 }
+
+func (s *stubSvc) GetSettings(context.Context, uuid.UUID) (domain.ReminderSettings, error) {
+	return domain.DefaultSettings(), nil
+}
+func (s *stubSvc) UpdateSettings(context.Context, uuid.UUID, domain.UpdateReminderSettingsInput) (domain.ReminderSettings, error) {
+	return domain.DefaultSettings(), nil
+}

@@ -1,13 +1,14 @@
 /* Только Web Push, без кэширования: свежие сборки прилетают сами. */
 
 self.addEventListener('push', (event) => {
-  let data = { title: 'Ритм', body: 'У вас новое напоминание', url: '/' };
+  let data = { title: 'Ритм', body: 'У вас новое напоминание', url: '/', id: 'reminder' };
   try {
     if (event.data) {
       const parsed = event.data.json();
       data = {
         title: typeof parsed.title === 'string' ? parsed.title : data.title,
         body: typeof parsed.body === 'string' ? parsed.body : data.body,
+        id: typeof parsed.id === 'string' ? parsed.id : data.id,
         url: typeof parsed.url === 'string' ? parsed.url : data.url,
       };
     }
@@ -21,7 +22,7 @@ self.addEventListener('push', (event) => {
       icon: '/icons/icon-192.png',
       badge: '/icons/icon-192.png',
       data: { url: data.url },
-      tag: 'rhythm-reminder',
+      tag: `rhythm-${data.id}`,
     }),
   );
 });
@@ -34,6 +35,7 @@ self.addEventListener('notificationclick', (event) => {
       const all = await clients.matchAll({ type: 'window', includeUncontrolled: true });
       for (const client of all) {
         if ('focus' in client) {
+          if ('navigate' in client) await client.navigate(url);
           await client.focus();
           return;
         }

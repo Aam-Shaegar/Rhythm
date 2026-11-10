@@ -159,7 +159,7 @@ func main() {
 
 	go jwtSvc.StartCleanup(ctx, time.Hour, logger)
 	go tasksSvc.GenerateRecurringTasks(ctx, time.Now().Add(30*24*time.Hour))
-	go remindersSvc.StartWorker(ctx, time.Minute, logger)
+	go remindersSvc.StartWorker(ctx, 10*time.Second, logger)
 
 	if err := httpServer.Run(ctx); err != nil {
 		logger.Error("HTTP server run error", zap.Error(err))

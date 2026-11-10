@@ -19,7 +19,7 @@ func NewRemindersRepository(p core_pool.Pool) *RemindersRepositoryImpl {
 
 func scanReminder(row core_pool.Row) (*domain.Reminder, error) {
 	var r domain.Reminder
-	err := row.Scan(&r.ID, &r.UserID, &r.EntityType, &r.EntityID, &r.Title, &r.RemindAt, &r.IsSent, &r.SentAt, &r.CreatedAt)
+	err := row.Scan(&r.ID, &r.UserID, &r.EntityType, &r.EntityID, &r.Title, &r.RemindAt, &r.IsSent, &r.SentAt, &r.CreatedAt, &r.IsOverdue)
 	if err != nil {
 		return nil, mapScanError(err)
 	}

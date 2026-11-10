@@ -17,6 +17,7 @@ type pushPayload struct {
 	Title string `json:"title"`
 	Body  string `json:"body"`
 	URL   string `json:"url"`
+	ID    string `json:"id"`
 }
 
 // 404/410 от push-сервиса — подписку удалить.
@@ -45,7 +46,7 @@ func NewWebPushSender(publicKey, privateKey, subject string) *WebPushSender {
 }
 
 func (s *WebPushSender) Send(ctx context.Context, sub *domain.PushSubscription, payload []byte) error {
-	resp, err := webpush.SendNotification(payload, &webpush.Subscription{
+	resp, err := webpush.SendNotificationWithContext(ctx, payload, &webpush.Subscription{
 		Endpoint: sub.Endpoint,
 		Keys:     webpush.Keys{P256dh: sub.P256DH, Auth: sub.Auth},
 	}, &webpush.Options{
@@ -107,6 +108,9 @@ func BuildPushPayload(rem *domain.Reminder) []byte {
 	if rem.Title == "" {
 		body = "У вас новое напоминание"
 	}
-	payload, _ := json.Marshal(pushPayload{Title: title, Body: body, URL: "/"})
+	if rem.IsOverdue {
+		body = fmt.Sprintf("Задача «%s» просрочена. Пора вернуться к ней", rem.Title)
+	}
+	payload, _ := json.Marshal(pushPayload{Title: title, Body: body, URL: "/?tab=" + map[string]string{"task": "tasks", "event": "calendar"}[rem.EntityType], ID: rem.ID.String()})
 	return payload
 }

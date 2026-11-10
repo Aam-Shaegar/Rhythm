@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -13,29 +14,44 @@ type Reminder struct {
 	EntityID   uuid.UUID
 	Title      string
 	RemindAt   time.Time
+	IsOverdue  bool
 	IsSent     bool
 	SentAt     *time.Time
 	CreatedAt  time.Time
 }
 
+// Offsets are minutes before the start/deadline; zero means at the deadline.
 type ReminderSettings struct {
-	EventReminders bool `json:"event_reminders"`
-	TaskReminders  bool `json:"task_reminders"`
-	EventBefore15m bool `json:"event_before_15m"`
-	EventBefore1h  bool `json:"event_before_1h"`
-	EventBefore24h bool `json:"event_before_24h"`
-	TaskBefore1h   bool `json:"task_before_1h"`
-	TaskBefore24h  bool `json:"task_before_24h"`
+	EventOffsets []int `json:"event_offsets"`
+	TaskOffsets  []int `json:"task_offsets"`
 }
 
 type UpdateReminderSettingsInput struct {
-	EventReminders *bool `json:"event_reminders,omitempty"`
-	TaskReminders  *bool `json:"task_reminders,omitempty"`
-	EventBefore15m *bool `json:"event_before_15m,omitempty"`
-	EventBefore1h  *bool `json:"event_before_1h,omitempty"`
-	EventBefore24h *bool `json:"event_before_24h,omitempty"`
-	TaskBefore1h   *bool `json:"task_before_1h,omitempty"`
-	TaskBefore24h  *bool `json:"task_before_24h,omitempty"`
+	EventOffsets *[]int `json:"event_offsets,omitempty"`
+	TaskOffsets  *[]int `json:"task_offsets,omitempty"`
+}
+
+func DefaultSettings() ReminderSettings {
+	return ReminderSettings{EventOffsets: []int{60, 0}, TaskOffsets: []int{60, 0}}
+}
+
+func (s UpdateReminderSettingsInput) Validate() error {
+	for _, offsets := range []*[]int{s.EventOffsets, s.TaskOffsets} {
+		if offsets == nil {
+			continue
+		}
+		if len(*offsets) > 5 {
+			return fmt.Errorf("maximum five reminders per category")
+		}
+		seen := map[int]bool{}
+		for _, n := range *offsets {
+			if n < 0 || n > 525600 || seen[n] {
+				return fmt.Errorf("offset must be unique and between 0 and 525600 minutes")
+			}
+			seen[n] = true
+		}
+	}
+	return nil
 }
 
 // Endpoint уникален: повторная подписка — upsert.

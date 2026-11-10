@@ -1,3 +1,4 @@
+import { DEFAULT_SETTINGS } from '../reminders';
 import { useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '../api/client';
 import {
@@ -10,6 +11,7 @@ import {
 } from '../api/push';
 import type { ReminderSettings, ThemeName, User } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
+import ReminderEditor from '../components/ReminderEditor';
 import { ErrorBlock, FieldError, Spinner } from '../components/ui';
 import {
   DEFAULT_CUSTOM,
@@ -23,25 +25,8 @@ import {
 // Фото храним как dataURL в localStorage: лимит ~2.5 МБ, иначе квота.
 const MAX_PHOTO_BYTES = 2.5 * 1024 * 1024;
 
-const DEFAULT_SETTINGS: ReminderSettings = {
-  event_reminders: true,
-  task_reminders: true,
-  event_before_15m: true,
-  event_before_1h: true,
-  event_before_24h: true,
-  task_before_1h: true,
-  task_before_24h: true,
-};
 
-const SETTING_LABELS: Array<{ key: keyof ReminderSettings; label: string }> = [
-  { key: 'event_reminders', label: 'Напоминания о событиях' },
-  { key: 'task_reminders', label: 'Напоминания о задачах' },
-  { key: 'event_before_15m', label: 'За 15 минут до события' },
-  { key: 'event_before_1h', label: 'За час до события' },
-  { key: 'event_before_24h', label: 'За сутки до события' },
-  { key: 'task_before_1h', label: 'За час до задачи' },
-  { key: 'task_before_24h', label: 'За сутки до задачи' },
-];
+
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/);
@@ -83,7 +68,7 @@ export default function SettingsScreen({
     try {
       const [me, rem] = await Promise.all([
         apiFetch<User>('/users/me'),
-        apiFetch<ReminderSettings>('/reminders/settings').catch(() => DEFAULT_SETTINGS),
+        apiFetch<ReminderSettings>('/reminders/settings'),
       ]);
       setProfile(me);
       setName(me.username);
@@ -128,22 +113,15 @@ export default function SettingsScreen({
     }
   }
 
-  async function toggleSetting(key: keyof ReminderSettings) {
-    const next = { ...settings, [key]: !settings[key] };
-    setSettings(next);
+  async function saveReminders(key: keyof ReminderSettings, offsets: number[]) {
     setSettingsBusy(true);
     try {
-      const saved = await apiFetch<ReminderSettings>('/reminders/settings', {
-        method: 'PATCH',
-        body: JSON.stringify({ [key]: next[key] }),
-      });
-      setSettings({ ...DEFAULT_SETTINGS, ...saved });
-    } catch (e) {
-      setSettings(settings);
-      notify('err', e instanceof Error ? e.message : 'Не получилось сохранить настройку');
-    } finally {
-      setSettingsBusy(false);
-    }
+      const saved = await apiFetch<ReminderSettings>('/reminders/settings', { method: 'PATCH', body: JSON.stringify({ [key]: offsets }) });
+      setSettings(saved);
+      window.dispatchEvent(new Event('rhytm:data-changed'));
+      notify('ok', 'Напоминания сохранены');
+    } catch (e) { notify('err', e instanceof Error ? e.message : 'Не получилось сохранить напоминания'); throw e; }
+    finally { setSettingsBusy(false); }
   }
 
   function pickTheme(t: ThemeName) {
@@ -337,19 +315,9 @@ export default function SettingsScreen({
         <div className="settings-section">
           <div className="settings-label">Уведомления</div>
           <PushRow notify={notify} />
-          {SETTING_LABELS.map(({ key, label }) => (
-            <div className="switch-row" key={key}>
-              <span className="t">{label}</span>
-              <button
-                className={`toggle${settings[key] ? ' on' : ''}`}
-                role="switch"
-                aria-checked={settings[key]}
-                aria-label={label}
-                disabled={settingsBusy}
-                onClick={() => void toggleSetting(key)}
-              />
-            </div>
-          ))}
+          <ReminderEditor label="События" offsets={settings.event_offsets} busy={settingsBusy} onSave={v => saveReminders('event_offsets',v)} />
+          <ReminderEditor label="Задачи" offsets={settings.task_offsets} busy={settingsBusy} onSave={v => saveReminders('task_offsets',v)} />
+          <p className="settings-hint">Для событий время отсчитывается от начала, для задач — от дедлайна. О просроченных задачах напоминаем каждые 2 часа до выполнения.</p>
         </div>
 
         <button

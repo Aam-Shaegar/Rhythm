@@ -16,7 +16,7 @@ func (r *RemindersRepositoryImpl) CreateReminders(ctx context.Context, reminders
 
 	const sql = `
 		INSERT INTO reminders (id, user_id, entity_type, entity_id, title, remind_at, is_sent, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (entity_type, entity_id, remind_at) DO NOTHING
 	`
 
 	batch := make([][]any, len(reminders))
@@ -44,12 +44,17 @@ func (r *RemindersRepositoryImpl) CreateReminders(ctx context.Context, reminders
 
 func (r *RemindersRepositoryImpl) GetPending(ctx context.Context, before time.Time, limit int) ([]*domain.Reminder, error) {
 	const sql = `
-		SELECT id, user_id, entity_type, entity_id, title, remind_at, is_sent, sent_at, created_at
-		FROM reminders
-		WHERE is_sent = FALSE AND remind_at <= $1
-		ORDER BY remind_at ASC
-		LIMIT $2
-	`
+ WITH pending AS (
+  SELECT r.id FROM reminders r
+  WHERE NOT r.is_sent AND r.remind_at <= $1 AND (r.claimed_until IS NULL OR r.claimed_until < now())
+   AND ((r.entity_type = 'task' AND EXISTS (SELECT 1 FROM tasks t WHERE t.id=r.entity_id AND NOT t.is_completed))
+     OR (r.entity_type = 'event' AND EXISTS (SELECT 1 FROM events e WHERE e.id=r.entity_id)))
+  ORDER BY r.remind_at ASC LIMIT $2 FOR UPDATE SKIP LOCKED
+ )
+ UPDATE reminders r SET claimed_until = now() + interval '2 minutes'
+ FROM pending p WHERE r.id=p.id
+ RETURNING r.id, r.user_id, r.entity_type, r.entity_id, r.title, r.remind_at, r.is_sent, r.sent_at, r.created_at, r.is_overdue
+ `
 
 	rows, err := r.pool.Query(ctx, sql, before, limit)
 	if err != nil {
@@ -103,7 +108,7 @@ func (r *RemindersRepositoryImpl) MarkSent(ctx context.Context, ids []uuid.UUID)
 
 func (r *RemindersRepositoryImpl) GetByEntity(ctx context.Context, entityType string, entityID uuid.UUID) ([]*domain.Reminder, error) {
 	const sql = `
-		SELECT id, user_id, entity_type, entity_id, title, remind_at, is_sent, sent_at, created_at
+		SELECT id, user_id, entity_type, entity_id, title, remind_at, is_sent, sent_at, created_at, is_overdue
 		FROM reminders
 		WHERE entity_type = $1 AND entity_id = $2
 		ORDER BY remind_at ASC

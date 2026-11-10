@@ -30,7 +30,15 @@ type Logger interface {
 	Error(msg string, fields ...zap.Field)
 }
 
+type SettingsRepository interface {
+	GetSettings(context.Context, uuid.UUID) (domain.ReminderSettings, error)
+	SaveSettings(context.Context, uuid.UUID, domain.UpdateReminderSettingsInput) (domain.ReminderSettings, error)
+	QueueOverdue(context.Context, time.Time) error
+}
+
 type RemindersService interface {
+	GetSettings(context.Context, uuid.UUID) (domain.ReminderSettings, error)
+	UpdateSettings(context.Context, uuid.UUID, domain.UpdateReminderSettingsInput) (domain.ReminderSettings, error)
 	ScheduleForEvent(ctx context.Context, event *events_domain.Event, userID uuid.UUID) error
 	ScheduleForTask(ctx context.Context, task *tasks_domain.Task, userID uuid.UUID) error
 	UpdateRemindersForEvent(ctx context.Context, event *events_domain.Event, userID uuid.UUID) error

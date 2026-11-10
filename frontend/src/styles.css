@@ -570,3 +570,18 @@ input[type='color'] { width: 26px; height: 26px; border: none; border-radius: 50
   .modal-backdrop { align-items: center; padding: 24px; }
   .toasts { max-width: 420px; margin: 0 auto; left: 16px; right: 16px; }
 }
+
+.reminder-editor { margin-top: 16px; padding: 16px; border: 1px solid var(--surface-strong); border-radius: 16px; background: var(--surface); }
+.reminder-editor h3 { font-size: 15px; color: var(--text); }
+.reminder-editor .row-head { margin: 0 0 12px; }
+.reminder-list { display: grid; gap: 7px; }
+.reminder-row { display: flex; align-items: center; background: var(--surface-strong); border-radius: 10px; }
+.reminder-time { flex: 1; border: none; background: transparent; text-align: left; padding: 12px; color: var(--text); cursor: pointer; font-size: 14px; }
+.remove-reminder { width: 44px; min-height: 44px; font-size: 22px; }
+.add-reminder { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; width: 100%; margin-top: 9px; border: 1px dashed var(--accent-deep); border-radius: 10px; background: transparent; color: var(--accent-deep); cursor: pointer; font-size: 13px; font-weight: 700; }
+.add-reminder span { font-size: 20px; }
+.settings-hint, .report-note { color: var(--text-soft); font-size: 13px; line-height: 1.6; }
+.settings-hint { margin-top: 8px; }
+.report-note { margin: 14px 0; }
+.report-deadlines { margin-top: 12px; }
+.period-row { grid-template-columns: 70px 1fr minmax(130px, auto); }

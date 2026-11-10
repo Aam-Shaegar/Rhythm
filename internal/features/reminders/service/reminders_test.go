@@ -73,15 +73,15 @@ func (m *mockRemindersRepo) DeleteSubscriptionByEndpoint(ctx context.Context, us
 	return nil
 }
 
-func TestScheduleForEvent_FutureCreatesThree(t *testing.T) {
+func TestScheduleForEvent_FutureCreatesTwo(t *testing.T) {
 	repo := &mockRemindersRepo{}
 	svc := NewRemindersService(repo, nil)
 	ev := &events_domain.Event{ID: uuid.New(), StartAt: time.Now().UTC().Add(48 * time.Hour)}
 	if err := svc.ScheduleForEvent(context.Background(), ev, uuid.New()); err != nil {
 		t.Fatal(err)
 	}
-	if len(repo.created) != 1 || len(repo.created[0]) != 3 {
-		t.Fatalf("expected 3 reminders, got %v", repo.created)
+	if len(repo.created) != 1 || len(repo.created[0]) != 2 {
+		t.Fatalf("expected 2 reminders, got %v", repo.created)
 	}
 }
 
@@ -92,7 +92,7 @@ func TestScheduleForEvent_PastCreatesNone(t *testing.T) {
 	if err := svc.ScheduleForEvent(context.Background(), ev, uuid.New()); err != nil {
 		t.Fatal(err)
 	}
-	if len(repo.created) != 0 {
+	if len(repo.created) != 0 && len(repo.created[0]) != 0 {
 		t.Fatalf("past event must not schedule, got %d batches", len(repo.created))
 	}
 }
@@ -126,7 +126,7 @@ func TestScheduleForTask_FutureAndPast(t *testing.T) {
 	if err := svc2.ScheduleForTask(context.Background(), past, uuid.New()); err != nil {
 		t.Fatal(err)
 	}
-	if len(repo2.created) != 0 {
+	if len(repo2.created) != 0 && len(repo2.created[0]) != 0 {
 		t.Fatalf("past task must not schedule")
 	}
 }
@@ -167,12 +167,12 @@ func TestProcessPending_Empty(t *testing.T) {
 
 func TestProcessPending_MarksSent(t *testing.T) {
 	repo := &mockRemindersRepo{pending: []*domain.Reminder{{ID: uuid.New()}, {ID: uuid.New()}}}
-	svc := NewRemindersService(repo, nil)
+	svc := NewRemindersService(repo, &fakeSender{})
 	n, err := svc.ProcessPendingReminders(context.Background(), time.Now(), 100)
 	if err != nil || n != 2 {
 		t.Fatalf("expected 2, got %d,%v", n, err)
 	}
-	if len(repo.marked) != 1 || len(repo.marked[0]) != 2 {
+	if len(repo.marked) != 2 || len(repo.marked[0]) != 1 {
 		t.Fatalf("expected mark 2 ids, got %v", repo.marked)
 	}
 }
@@ -393,5 +393,52 @@ func TestEndpointHost(t *testing.T) {
 	}
 	if got := endpointHost("not a url \\"); got != "unknown" {
 		t.Fatalf("got %q", got)
+	}
+}
+
+type configuredRepo struct {
+	*mockRemindersRepo
+	settings domain.ReminderSettings
+}
+
+func (r *configuredRepo) GetSettings(context.Context, uuid.UUID) (domain.ReminderSettings, error) {
+	return r.settings, nil
+}
+func (r *configuredRepo) SaveSettings(context.Context, uuid.UUID, domain.UpdateReminderSettingsInput) (domain.ReminderSettings, error) {
+	return r.settings, nil
+}
+func (r *configuredRepo) QueueOverdue(context.Context, time.Time) error { return nil }
+func TestCustomOffsetsAndCompletedTask(t *testing.T) {
+	r := &configuredRepo{mockRemindersRepo: &mockRemindersRepo{}, settings: domain.ReminderSettings{EventOffsets: []int{60, 30, 15, 5, 0}, TaskOffsets: []int{15, 0}}}
+	s := NewRemindersService(r, nil)
+	due := time.Now().UTC().Add(3 * time.Hour)
+	ev := &events_domain.Event{ID: uuid.New(), StartAt: due}
+	if err := s.ScheduleForEvent(context.Background(), ev, uuid.New()); err != nil {
+		t.Fatal(err)
+	}
+	if len(r.created[0]) != 5 {
+		t.Fatal("expected all five custom offsets")
+	}
+	for i, m := range []int{60, 30, 15, 5, 0} {
+		if !r.created[0][i].RemindAt.Equal(due.Add(-time.Duration(m) * time.Minute)) {
+			t.Fatal("wrong offset", m)
+		}
+	}
+	if err := s.ScheduleForTask(context.Background(), &tasks_domain.Task{IsCompleted: true, DueAt: due}, uuid.New()); err != nil {
+		t.Fatal(err)
+	}
+	if len(r.created) != 1 {
+		t.Fatal("completed tasks must not schedule")
+	}
+}
+
+func TestFailedDeliveryRemainsPending(t *testing.T) {
+	r := &subsRepo{mockRemindersRepo: &mockRemindersRepo{pending: []*domain.Reminder{{ID: uuid.New()}}}, subs: []*domain.PushSubscription{{Endpoint: "https://push/fail"}}}
+	s := NewRemindersService(r, &fakeSender{fail: map[string]error{"https://push/fail": errors.New("offline")}})
+	if _, err := s.ProcessPendingReminders(context.Background(), time.Now(), 100); err != nil {
+		t.Fatal(err)
+	}
+	if len(r.marked) != 0 {
+		t.Fatal("failed delivery must retry, not be marked sent")
 	}
 }

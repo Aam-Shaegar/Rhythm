@@ -1,6 +1,7 @@
 package settings
 
 import (
+	"github.com/google/uuid"
 	"net/http"
 
 	core_errors "github.com/Aam-Shaegar/Rhythm/internal/core/errors"
@@ -21,7 +22,7 @@ func NewUpdateHandler(svc service.RemindersService) *UpdateHandler {
 func (h *UpdateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	_, ok := getUserIDFromContext(ctx)
+	uid, ok := getUserIDFromContext(ctx)
 	if !ok {
 		core_response.NewHTTPResponseHandler(nil, w).ErrorResponse(core_errors.ErrUnauthorized, "user not in context")
 		return
@@ -33,23 +34,17 @@ func (h *UpdateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	settings := domain.ReminderSettings{
-		EventReminders: derefBool(input.EventReminders, true),
-		TaskReminders:  derefBool(input.TaskReminders, true),
-		EventBefore15m: derefBool(input.EventBefore15m, true),
-		EventBefore1h:  derefBool(input.EventBefore1h, true),
-		EventBefore24h: derefBool(input.EventBefore24h, true),
-		TaskBefore1h:   derefBool(input.TaskBefore1h, true),
-		TaskBefore24h:  derefBool(input.TaskBefore24h, true),
+	userID, err := uuid.Parse(uid)
+	if err != nil {
+		core_response.NewHTTPResponseHandler(nil, w).ErrorResponse(core_errors.ErrUnauthorized, "invalid user")
+		return
+	}
+	settings, err := h.svc.UpdateSettings(ctx, userID, input)
+	if err != nil {
+		core_response.NewHTTPResponseHandler(nil, w).ErrorResponse(err, "не удалось сохранить настройки напоминаний")
+		return
 	}
 
 	respHandler := core_response.NewHTTPResponseHandler(nil, w)
 	respHandler.JSONResponse(settings, http.StatusOK)
-}
-
-func derefBool(ptr *bool, defaultVal bool) bool {
-	if ptr != nil {
-		return *ptr
-	}
-	return defaultVal
 }

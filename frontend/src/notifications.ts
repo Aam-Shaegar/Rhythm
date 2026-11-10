@@ -9,14 +9,6 @@ export interface Notice {
   tab: 'tasks' | 'calendar';
 }
 
-const HOUR = 3600e3;
-
-function startOfDay(d: Date): Date {
-  const c = new Date(d);
-  c.setHours(0, 0, 0, 0);
-  return c;
-}
-
 // Сервер отдаёт только настройки: предстоящее выводим из загруженных сущностей.
 export function deriveNotices(
   tasks: Task[],
@@ -26,13 +18,13 @@ export function deriveNotices(
 ): Notice[] {
   const out: Notice[] = [];
   const t = now.getTime();
-  const dayStart = startOfDay(now).getTime();
+
 
   for (const task of tasks) {
     if (task.is_completed) continue;
     const due = new Date(task.due_at).getTime();
     if (Number.isNaN(due)) continue;
-    if (due < dayStart) {
+    if (due < t) {
       out.push({
         id: `overdue-${task.id}`,
         kind: 'overdue',
@@ -41,9 +33,8 @@ export function deriveNotices(
         at: due,
         tab: 'tasks',
       });
-    } else if (settings.task_reminders && due - t >= 0 && due - t <= 24 * HOUR) {
-      const before = settings.task_before_1h || settings.task_before_24h;
-      if (!before) continue;
+    } else if (settings.task_offsets.length > 0 && due - t >= 0 && due - t <= Math.max(...settings.task_offsets) * 60000) {
+
       out.push({
         id: `soon-task-${task.id}`,
         kind: 'soon-task',
@@ -58,10 +49,8 @@ export function deriveNotices(
   for (const ev of events) {
     const s = new Date(ev.start_at).getTime();
     if (Number.isNaN(s)) continue;
-    if (s < t || s - t > 24 * HOUR) continue;
-    if (!settings.event_reminders) continue;
-    const before = settings.event_before_15m || settings.event_before_1h || settings.event_before_24h;
-    if (!before) continue;
+    if (s < t || !settings.event_offsets.length || s - t > Math.max(...settings.event_offsets) * 60000) continue;
+
     out.push({
       id: `soon-event-${ev.id}`,
       kind: 'soon-event',

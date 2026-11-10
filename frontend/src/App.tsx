@@ -1,3 +1,4 @@
+import { DEFAULT_SETTINGS } from './reminders';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 import { apiFetch } from './api/client';
@@ -17,15 +18,7 @@ import { Toasts, type Toast } from './components/ui';
 
 let toastId = 1;
 
-const DEFAULT_SETTINGS: ReminderSettings = {
-  event_reminders: true,
-  task_reminders: true,
-  event_before_15m: true,
-  event_before_1h: true,
-  event_before_24h: true,
-  task_before_1h: true,
-  task_before_24h: true,
-};
+
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/);
@@ -44,7 +37,7 @@ function BellIcon() {
 
 function Shell() {
   const { user, loading, logout } = useAuth();
-  const [tab, setTab] = useState<Tab>('home');
+  const [tab, setTab] = useState<Tab>(() => { const t = new URLSearchParams(location.search).get('tab'); return TABS.some(x => x.id === t) ? t as Tab : 'home'; });
   const [theme, setTheme] = useState<ThemeName>(() => loadThemeName());
   const [artOn, setArtOn] = useState<boolean>(() => loadArt());
   // Счётчик изменений палитры/фото своей темы — триггер переприменения к DOM.
@@ -87,8 +80,9 @@ function Shell() {
   useEffect(() => {
     if (!user) return;
     void loadNotices();
-    const t = setInterval(() => void loadNotices(), 60000);
-    return () => clearInterval(t);
+    const t = setInterval(() => { if (!document.hidden) void loadNotices(); }, 60000);
+    window.addEventListener('rhytm:data-changed', loadNotices);
+    return () => { clearInterval(t); window.removeEventListener('rhytm:data-changed', loadNotices); };
   }, [user, loadNotices, tab]);
 
   // Единственное место применения темы к DOM.
