@@ -42,14 +42,23 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	from := query.From
-	to := query.To
-
-	if from.IsZero() {
-		from = time.Now().UTC().AddDate(0, 0, -30)
+	to, err := domain.ReportDate(query.To, query.TimeZone)
+	if err != nil {
+		core_response.NewHTTPResponseHandler(nil, w).ErrorResponse(err, "invalid time zone")
+		return
 	}
-	if to.IsZero() {
-		to = time.Now().UTC()
+	fromInput := query.From
+	if fromInput.IsZero() {
+		fromInput = to.AddDate(0, 0, -30)
+	}
+	from, err := domain.ReportDate(fromInput, query.TimeZone)
+	if err != nil {
+		core_response.NewHTTPResponseHandler(nil, w).ErrorResponse(err, "invalid time zone")
+		return
+	}
+	if from.After(to) || to.Sub(from) > 63*24*time.Hour {
+		core_response.NewHTTPResponseHandler(nil, w).ErrorResponse(core_errors.ErrInvalidArgument, "invalid report period")
+		return
 	}
 
 	reports, err := h.svc.GetPeriodReport(ctx, userID, from, to)

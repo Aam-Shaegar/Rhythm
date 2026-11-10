@@ -56,7 +56,7 @@ export default function DashboardScreen({
       const [t, e, r] = await Promise.all([
         apiFetch<Task[]>('/tasks'),
         loadEvents(from, to),
-        apiFetch<DailyReport>(`/reports/daily?date=${encodeURIComponent(today)}`),
+        apiFetch<DailyReport>(`/reports/daily?date=${encodeURIComponent(today)}&time_zone=${encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone)}`),
       ]);
       setTasks(t);
       setEvents(e);

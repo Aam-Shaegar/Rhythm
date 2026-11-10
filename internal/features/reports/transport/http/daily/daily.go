@@ -3,7 +3,6 @@ package daily
 import (
 	"context"
 	"net/http"
-	"time"
 
 	core_errors "github.com/Aam-Shaegar/Rhythm/internal/core/errors"
 	core_request "github.com/Aam-Shaegar/Rhythm/internal/core/transport/http/request"
@@ -42,9 +41,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	date := query.Date
-	if date.IsZero() {
-		date = time.Now().UTC()
+	date, err := domain.ReportDate(query.Date, query.TimeZone)
+	if err != nil {
+		core_response.NewHTTPResponseHandler(nil, w).ErrorResponse(err, "invalid time zone")
+		return
 	}
 
 	report, err := h.svc.GetDailyReport(ctx, userID, date)

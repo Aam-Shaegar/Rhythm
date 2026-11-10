@@ -28,7 +28,7 @@ export default function ReportsScreen() {
     setError('');
     try {
       if (mode === 'day') {
-        const r = await apiFetch<DailyReport>(`/reports/daily?date=${encodeURIComponent(date)}`);
+        const r = await apiFetch<DailyReport>(`/reports/daily?date=${encodeURIComponent(date)}&time_zone=${encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone)}`);
         setDaily(r);
       } else {
         if (new Date(from) > new Date(to)) {
@@ -43,7 +43,7 @@ export default function ReportsScreen() {
           return;
         }
         const list = await apiFetch<DailyReport[]>(
-          `/reports/period?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+          `/reports/period?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&time_zone=${encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone)}`,
         );
         setPeriod(list);
       }

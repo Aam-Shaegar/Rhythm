@@ -92,7 +92,7 @@ func (s *ReportsServiceImpl) GetPeriodReport(ctx context.Context, userID uuid.UU
 			return nil, err
 		}
 		reports = append(reports, report)
-		current = current.Add(24 * time.Hour)
+		current = current.AddDate(0, 0, 1)
 	}
 
 	return reports, nil

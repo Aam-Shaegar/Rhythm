@@ -17,10 +17,12 @@ type DailyReport struct {
 }
 
 type DailyReportQuery struct {
-	Date time.Time `query:"date"`
+	TimeZone string    `query:"time_zone"`
+	Date     time.Time `query:"date"`
 }
 
 type PeriodReportQuery struct {
-	From time.Time `query:"from"`
-	To   time.Time `query:"to"`
+	TimeZone string    `query:"time_zone"`
+	From     time.Time `query:"from"`
+	To       time.Time `query:"to"`
 }
