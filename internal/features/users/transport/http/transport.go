@@ -34,7 +34,7 @@ func (h *UsersHTTPHandler) Routes() []core_http_server.Route {
 }
 
 func (h *UsersHTTPHandler) Register(w http.ResponseWriter, r *http.Request) {
-	register.NewHandler(h.svc).ServeHTTP(w, r)
+	register.NewHandler(h.svc, h.cfg.JwtRefreshTTL, h.cfg.SecureRefreshCookie).ServeHTTP(w, r)
 }
 
 func (h *UsersHTTPHandler) Login(w http.ResponseWriter, r *http.Request) {

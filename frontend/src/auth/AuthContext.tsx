@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { apiFetch, clearTokens, getAccessToken, setTokens } from '../api/client';
+import { apiFetch, clearTokens, SessionExpiredError, setTokens } from '../api/client';
 import type { AuthResponse, LoginResponse, User } from '../api/types';
 
 interface AuthState {
@@ -28,20 +28,15 @@ function normalizeLogin(data: LoginResponse, fallbackEmail: string): { user: Use
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => { try { return JSON.parse(localStorage.getItem('rhytm.user') ?? 'null'); } catch { return null; } });
   const [loading, setLoading] = useState(true);
 
   const refreshUser = useCallback(async () => {
-    if (!getAccessToken()) {
-      setUser(null);
-      setLoading(false);
-      return;
-    }
     try {
       const me = await apiFetch<User>('/users/me');
       setUser(me);
-    } catch {
-      setUser(null);
+    } catch (e) {
+      if (e instanceof SessionExpiredError) setUser(null);
     } finally {
       setLoading(false);
     }
@@ -60,9 +55,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       body: JSON.stringify({ email, password }),
     });
     const norm = normalizeLogin(data, email);
-    // Login returns no refresh_token in body (HttpOnly cookie); keep stored one.
-    const prevRefresh = localStorage.getItem('rhytm.refresh_token') ?? '';
-    setTokens(norm.access, prevRefresh || undefined);
+    localStorage.removeItem('rhytm.refresh_token');
+    setTokens(norm.access);
     // Re-fetch full profile (created_at etc.).
     try {
       const me = await apiFetch<User>('/users/me');
@@ -77,14 +71,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       method: 'POST',
       body: JSON.stringify({ username, email, password }),
     });
-    setTokens(data.access_token, data.refresh_token);
+    setTokens(data.access_token);
+    localStorage.removeItem('rhytm.refresh_token');
     setUser(data.user);
   }, []);
 
   const logout = useCallback(() => {
+    void apiFetch('/auth/logout', { method: 'POST' }).catch(() => {});
     clearTokens();
+    localStorage.removeItem('rhytm.user');
     setUser(null);
   }, []);
+
+  useEffect(() => {
+    if (user) localStorage.setItem('rhytm.user', JSON.stringify(user));
+    else if (!loading) localStorage.removeItem('rhytm.user');
+  }, [user, loading]);
 
   const value = useMemo(
     () => ({ user, loading, login, register, logout, refreshUser }),

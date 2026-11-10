@@ -12,7 +12,7 @@ function resolveApiUrl(): string {
   if (rt && typeof rt.API_URL === 'string') {
     return rt.API_URL.replace(/\/$/, '') || '/api/v1';
   }
-  const baked = import.meta.env.VITE_API_URL as string | undefined;
+  const baked = import.meta.env?.VITE_API_URL as string | undefined;
   return baked?.replace(/\/$/, '') || 'http://localhost:8080/api/v1';
 }
 
@@ -60,39 +60,38 @@ export function toApiError(status: number, body: unknown): ApiError {
   return { status, message: `Ошибка ${status}`, error: 'Error' };
 }
 
-async function refreshAccessToken(): Promise<string | null> {
-  const rt = getRefreshToken();
-  if (!rt) return null;
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS);
-  try {
-    const res = await fetch(`${API_URL}/auth/refresh`, {
-      method: 'POST',
-      headers: { 'X-Refresh-Token': rt },
-      signal: ctrl.signal,
-    });
-    if (!res.ok) {
-      // try cookie-based refresh (backend also reads Cookie: refresh_token)
-      const res2 = await fetch(`${API_URL}/auth/refresh`, { method: 'POST', credentials: 'include' });
-      if (!res2.ok) return null;
-      const data = (await res2.json()) as { access_token: string };
-      if (data.access_token) {
-        setTokens(data.access_token);
-        return data.access_token;
-      }
-      return null;
-    }
-    const data = (await res.json()) as { access_token: string; refresh_token?: string };
-    if (data.access_token) {
-      setTokens(data.access_token, data.refresh_token);
+let refreshing: Promise<string> | null = null;
+export class SessionExpiredError extends Error {}
+
+export function refreshAccessToken(): Promise<string> {
+  if (refreshing) return refreshing;
+  const refresh = async () => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS);
+    try {
+      // Legacy header tokens are no longer used: login and rotation share an HttpOnly cookie.
+      const res = await fetch(`${API_URL}/auth/refresh`, { method: 'POST', credentials: 'include', signal: ctrl.signal });
+      if (res.status === 401) throw new SessionExpiredError('Сессия истекла. Войдите снова.');
+      if (!res.ok) throw new Error('Сервер временно недоступен. Повторите позже.');
+      const data = await res.json() as { access_token: string };
+      if (!data.access_token) throw new Error('Не удалось обновить сессию');
+      setTokens(data.access_token);
+      localStorage.removeItem(REFRESH_KEY);
       return data.access_token;
+    } finally { clearTimeout(timer); }
+  };
+  refreshing = (async () => {
+    // Serialize refresh across tabs, then reuse the token another tab just obtained.
+    const previous = getAccessToken();
+    if (typeof navigator !== 'undefined' && navigator.locks) {
+      return navigator.locks.request('rhytm:refresh', async () => {
+        const latest = getAccessToken();
+        return latest && latest !== previous ? latest : refresh();
+      });
     }
-    return null;
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timer);
-  }
+    return refresh();
+  })().finally(() => { refreshing = null; });
+  return refreshing;
 }
 
 export async function apiFetch<T>(path: string, init: RequestInit = {}, retry = true): Promise<T> {
@@ -122,11 +121,18 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}, retry = 
 
   if (res.status === 204) return undefined as unknown as T;
 
-  if (res.status === 401 && retry && token) {
-    const fresh = await refreshAccessToken();
-    if (fresh) return apiFetch<T>(path, init, false);
-    clearTokens();
-    window.dispatchEvent(new Event('rhytm:unauthorized'));
+  if (res.status === 401 && retry && !path.startsWith('/auth/')) {
+    try {
+      const latest = getAccessToken();
+      if (!latest || latest === token) await refreshAccessToken();
+      return apiFetch<T>(path, init, false);
+    } catch (e) {
+      if (e instanceof SessionExpiredError) {
+        clearTokens();
+        window.dispatchEvent(new Event('rhytm:unauthorized'));
+      }
+      throw e;
+    }
   }
 
   let body: unknown = null;
@@ -136,6 +142,9 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}, retry = 
     body = null;
   }
 
-  if (!res.ok) throw toApiError(res.status, body);
+  if (!res.ok) {
+    const error = toApiError(res.status, body);
+    throw Object.assign(new Error(error.message), error);
+  }
   return body as T;
 }

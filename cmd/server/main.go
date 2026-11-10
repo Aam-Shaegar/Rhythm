@@ -113,7 +113,7 @@ func main() {
 	publicRoutes = append(publicRoutes, usersHandler.Routes()...)
 	filteredPublicRoutes := make([]core_http_server.Route, 0)
 	for _, route := range publicRoutes {
-		if route.Path == "/auth/register" || route.Path == "/auth/login" || route.Path == "/auth/refresh" {
+		if route.Path == "/auth/register" || route.Path == "/auth/login" || route.Path == "/auth/refresh" || route.Path == "/auth/logout" {
 			filteredPublicRoutes = append(filteredPublicRoutes, route)
 		}
 	}

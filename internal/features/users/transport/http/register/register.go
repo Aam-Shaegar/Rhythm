@@ -2,6 +2,7 @@ package register
 
 import (
 	"net/http"
+	"time"
 
 	core_request "github.com/Aam-Shaegar/Rhythm/internal/core/transport/http/request"
 	core_response "github.com/Aam-Shaegar/Rhythm/internal/core/transport/http/response"
@@ -10,11 +11,13 @@ import (
 )
 
 type Handler struct {
-	svc service.UsersService
+	svc        service.UsersService
+	refreshTTL time.Duration
+	secure     bool
 }
 
-func NewHandler(svc service.UsersService) *Handler {
-	return &Handler{svc: svc}
+func NewHandler(svc service.UsersService, ttl time.Duration, secure bool) *Handler {
+	return &Handler{svc: svc, refreshTTL: ttl, secure: secure}
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -32,6 +35,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	http.SetCookie(w, &http.Cookie{Name: "refresh_token", Value: authResp.RefreshToken, Path: "/", MaxAge: int(h.refreshTTL.Seconds()), HttpOnly: true, Secure: h.secure, SameSite: http.SameSiteLaxMode})
 	respHandler := core_response.NewHTTPResponseHandler(nil, w)
 	respHandler.JSONResponse(authResp, http.StatusCreated)
 }
