@@ -383,7 +383,7 @@ function PushRow({ notify }: { notify: (k: 'ok' | 'err', t: string) => void }) {
   if (state === 'unsupported') {
     return (
       <div className="switch-row">
-        <span className="t">Push на телефон недоступен в этом браузере</span>
+        <span className="t">В этом браузере push-уведомления недоступны</span>
       </div>
     );
   }
@@ -391,12 +391,12 @@ function PushRow({ notify }: { notify: (k: 'ok' | 'err', t: string) => void }) {
   return (
     <>
       <div className="switch-row">
-        <span className="t">Push-уведомления на телефон</span>
+        <span className="t">Push-уведомления на этом устройстве</span>
         <button
           className={`toggle${state === 'on' ? ' on' : ''}`}
           role="switch"
           aria-checked={state === 'on'}
-          aria-label="Push-уведомления на телефон"
+          aria-label="Push-уведомления на этом устройстве"
           disabled={busy || state === 'busy' || state === 'denied'}
           onClick={() => void toggle()}
         />

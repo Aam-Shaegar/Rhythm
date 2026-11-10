@@ -34,11 +34,14 @@ func (s *JwtServiceImpl) RefreshTokens(ctx context.Context, refreshToken string)
 		return nil, err
 	}
 
-	if err := s.jwtRepo.RevokeRefreshToken(ctx, storedToken.ID); err != nil {
+	pair, next, err := s.newPair(user.ID, user.Username)
+	if err != nil {
 		return nil, err
 	}
-
-	return s.GeneratePair(ctx, user.ID, user.Username)
+	if err := s.jwtRepo.RotateRefreshToken(ctx, storedToken.ID, next); err != nil {
+		return nil, err
+	}
+	return pair, nil
 }
 
 func (s *JwtServiceImpl) RevokeRefreshToken(ctx context.Context, tokenString string) error {

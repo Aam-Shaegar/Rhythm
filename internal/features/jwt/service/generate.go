@@ -32,14 +32,25 @@ func NewJwtService(jwtRepo JwtRepository, usersRepo UsersRepository, cfg *core_c
 }
 
 func (s *JwtServiceImpl) GeneratePair(ctx context.Context, userID uuid.UUID, username string) (*domain.TokenPair, error) {
-	accessToken, err := s.generateAccessToken(userID, username)
+	pair, stored, err := s.newPair(userID, username)
 	if err != nil {
 		return nil, err
+	}
+	if err := s.jwtRepo.CreateRefreshToken(ctx, stored); err != nil {
+		return nil, err
+	}
+	return pair, nil
+}
+
+func (s *JwtServiceImpl) newPair(userID uuid.UUID, username string) (*domain.TokenPair, *domain.RefreshToken, error) {
+	accessToken, err := s.generateAccessToken(userID, username)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	refreshToken, err := s.generateRefreshToken()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	refreshTokenHash := s.hashToken(refreshToken)
@@ -53,16 +64,12 @@ func (s *JwtServiceImpl) GeneratePair(ctx context.Context, userID uuid.UUID, use
 		CreatedAt: time.Now().UTC(),
 	}
 
-	if err := s.jwtRepo.CreateRefreshToken(ctx, rt); err != nil {
-		return nil, err
-	}
-
 	return &domain.TokenPair{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		AccessTTL:    s.accessTTL,
 		RefreshTTL:   s.refreshTTL,
-	}, nil
+	}, rt, nil
 }
 
 func (s *JwtServiceImpl) generateAccessToken(userID uuid.UUID, username string) (string, error) {

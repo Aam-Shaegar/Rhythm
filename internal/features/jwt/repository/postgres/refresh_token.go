@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	core_errors "github.com/Aam-Shaegar/Rhythm/internal/core/errors"
 	core_pool "github.com/Aam-Shaegar/Rhythm/internal/core/repository/postgres/pool"
 	"github.com/Aam-Shaegar/Rhythm/internal/features/jwt/domain"
 	"github.com/google/uuid"
@@ -60,4 +61,25 @@ func (r *JwtRepositoryImpl) RevokeAllUserTokens(ctx context.Context, userID uuid
 
 	_, err := r.pool.Exec(ctx, sql, userID, time.Now().UTC())
 	return err
+}
+
+// Revoke the old token and persist its replacement in one transaction.
+func (r *JwtRepositoryImpl) RotateRefreshToken(ctx context.Context, previous uuid.UUID, next *domain.RefreshToken) error {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	tag, err := tx.Exec(ctx, `UPDATE refresh_tokens SET revoked_at=now() WHERE id=$1 AND revoked_at IS NULL AND expires_at > now()`, previous)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() != 1 {
+		return core_errors.ErrUnauthorized
+	}
+	_, err = tx.Exec(ctx, `INSERT INTO refresh_tokens(id,user_id,token_hash,expires_at,created_at) VALUES($1,$2,$3,$4,$5)`, next.ID, next.UserID, next.TokenHash, next.ExpiresAt, next.CreatedAt)
+	if err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }

@@ -301,3 +301,15 @@ func TestStartCleanup(t *testing.T) {
 		t.Error("expected cleanup to log something")
 	}
 }
+
+func (m *mockJwtRepo) RotateRefreshToken(ctx context.Context, previous uuid.UUID, next *jwt_domain.RefreshToken) error {
+	for _, old := range m.tokens {
+		if old.ID == previous && old.RevokedAt == nil {
+			if err := m.CreateRefreshToken(ctx, next); err != nil {
+				return err
+			}
+			return m.RevokeRefreshToken(ctx, previous)
+		}
+	}
+	return core_errors.ErrUnauthorized
+}

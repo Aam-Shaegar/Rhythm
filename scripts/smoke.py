@@ -79,3 +79,20 @@ assert sql(f"SELECT count(*) FROM reminders WHERE entity_id='{future['id']}'") =
 req('/auth/logout', {}, 'POST')
 expect_error(401, '/auth/refresh', {}, 'POST')
 print('PASS: startup, cookie session, settings persistence/limits, rescheduling, overdue worker, late reports, sorting, completion, logout')
+
+# Exactly one concurrent request may rotate a refresh token.
+from concurrent.futures import ThreadPoolExecutor
+concurrent_name = 'race' + uuid.uuid4().hex[:12]
+req('/auth/register', {'username': concurrent_name, 'email': concurrent_name + '@example.test', 'password': password})
+old_refresh = next(c.value for c in jar if c.name == 'refresh_token')
+def rotate(_):
+    request = urllib.request.Request(base + '/auth/refresh', data=b'{}', headers={'X-Refresh-Token': old_refresh, 'Content-Type': 'application/json'})
+    try:
+        with urllib.request.urlopen(request, timeout=15) as res:
+            return res.status
+    except urllib.error.HTTPError as e:
+        return e.code
+with ThreadPoolExecutor(max_workers=8) as pool:
+    statuses = list(pool.map(rotate, range(8)))
+assert statuses.count(200) == 1 and statuses.count(401) == 7, statuses
+print('PASS: exactly one successful refresh rotation across eight concurrent requests')

@@ -35,6 +35,8 @@ interface ModalState {
 }
 
 export default function TasksScreen({ notify }: { notify: (k: 'ok' | 'err', t: string) => void }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 30000); return () => clearInterval(timer); }, []);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -150,7 +152,7 @@ export default function TasksScreen({ notify }: { notify: (k: 'ok' | 'err', t: s
                 <span className="task-title">{t.title}</span>
                 <span className="task-meta">
                   <span>{fmtDue(t.due_at)}</span>
-                  {taskStatus(t) && <span className="overdue">{taskStatus(t)}</span>}
+                  {taskStatus(t, now) && <span className="overdue">{taskStatus(t, now)}</span>}
                   {t.recurrence_type && <span> · повтор {REC_LABEL[t.recurrence_type] ?? t.recurrence_type}</span>}
                 </span>
                 {t.description && <span className="task-desc">{t.description}</span>}

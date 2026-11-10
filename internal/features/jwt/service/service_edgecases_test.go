@@ -9,6 +9,7 @@ import (
 
 	core_config "github.com/Aam-Shaegar/Rhythm/internal/core/config"
 	core_errors "github.com/Aam-Shaegar/Rhythm/internal/core/errors"
+	jwt_domain "github.com/Aam-Shaegar/Rhythm/internal/features/jwt/domain"
 	users_domain "github.com/Aam-Shaegar/Rhythm/internal/features/users/domain"
 	"github.com/google/uuid"
 )
@@ -95,5 +96,32 @@ func TestRefresh_Rotation_RevokesOld(t *testing.T) {
 	}
 	if _, err := svc.RefreshTokens(context.Background(), pair.RefreshToken); !errors.Is(err, core_errors.ErrUnauthorized) {
 		t.Fatalf("reused revoked token should be Unauthorized, got %v", err)
+	}
+}
+
+type failingRotation struct{ *mockJwtRepo }
+
+func (r *failingRotation) RotateRefreshToken(context.Context, uuid.UUID, *jwt_domain.RefreshToken) error {
+	return errors.New("transaction failed")
+}
+func TestFailedRotationPreservesExistingSession(t *testing.T) {
+	svc, repo, users := newEdgeSvc()
+	uid := uuid.New()
+	users.users[uid] = edgeUser(uid, "rotation")
+	pair, err := svc.GeneratePair(context.Background(), uid, "rotation")
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc.jwtRepo = &failingRotation{repo}
+	if _, err = svc.RefreshTokens(context.Background(), pair.RefreshToken); err == nil {
+		t.Fatal("expected transaction failure")
+	}
+	if len(repo.tokens) != 1 {
+		t.Fatal("failed rotation persisted a replacement")
+	}
+	for _, token := range repo.tokens {
+		if token.RevokedAt != nil {
+			t.Fatal("failed rotation revoked existing session")
+		}
 	}
 }

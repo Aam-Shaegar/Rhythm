@@ -71,8 +71,10 @@ export function refreshAccessToken(): Promise<string> {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS);
     try {
-      // Legacy header tokens are no longer used: login and rotation share an HttpOnly cookie.
-      const res = await fetch(`${API_URL}/auth/refresh`, { method: 'POST', credentials: 'include', signal: ctrl.signal });
+      // Prefer the HttpOnly cookie; migrate older registrations that only stored a header token.
+      let res = await fetch(`${API_URL}/auth/refresh`, { method: 'POST', credentials: 'include', signal: ctrl.signal });
+      const legacy = getRefreshToken();
+      if (res.status === 401 && legacy) res = await fetch(`${API_URL}/auth/refresh`, { method: 'POST', credentials: 'include', headers: { 'X-Refresh-Token': legacy }, signal: ctrl.signal });
       if (res.status === 401) throw new SessionExpiredError('Сессия истекла. Войдите снова.');
       if (!res.ok) throw new Error('Сервер временно недоступен. Повторите позже.');
       const data = await res.json() as { access_token: string };

@@ -8,6 +8,7 @@ import (
 )
 
 type JwtRepository interface {
+	RotateRefreshToken(context.Context, uuid.UUID, *domain.RefreshToken) error
 	CreateRefreshToken(ctx context.Context, token *domain.RefreshToken) error
 	GetRefreshTokenByHash(ctx context.Context, tokenHash string) (*domain.RefreshToken, error)
 	RevokeRefreshToken(ctx context.Context, id uuid.UUID) error

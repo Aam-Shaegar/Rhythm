@@ -75,13 +75,14 @@ export default function DashboardScreen({
     return () => window.removeEventListener('online', refresh);
   }, [load]);
 
-  const now = useMemo(() => new Date(), []);
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => { const timer = setInterval(() => setNow(new Date()), 30000); return () => clearInterval(timer); }, []);
   const todayTasks = useMemo(() => {
     const t = new Date();
     return tasks
       .filter((x) => sameDay(new Date(x.due_at), t))
       .sort(compareTasks);
-  }, [tasks]);
+  }, [tasks, now]);
   const overdue = useMemo(
     () => tasks.filter((x) => !x.is_completed && new Date(x.due_at).getTime() < now.getTime()),
     [tasks, now],
@@ -203,7 +204,7 @@ export default function DashboardScreen({
                           <span className="task-title">{t.title}</span>
                           <span className="task-meta">
                             <span>{fmtTime(t.due_at)}</span>
- {taskStatus(t) && <span className="overdue">{taskStatus(t)}</span>}
+ {taskStatus(t, now.getTime()) && <span className="overdue">{taskStatus(t, now.getTime())}</span>}
                           </span>
                         </button>
                       </div>

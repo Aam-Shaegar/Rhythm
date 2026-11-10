@@ -44,3 +44,11 @@ test('a definitively expired refresh clears stored credentials', async () => {
  await assert.rejects(apiFetch('/users/me'));
  assert.equal(getAccessToken(), null);
 });
+
+test('migrates legacy registration refresh tokens to a cookie session', async()=>{
+ clearTokens();setTokens('legacy-access','legacy-refresh');
+ let calls=0;
+ globalThis.fetch=async(_url,init)=>{calls++;return init.headers?.['X-Refresh-Token']==='legacy-refresh'?json({access_token:'migrated'}):json({},401)};
+ assert.equal(await refreshAccessToken(),'migrated');
+ assert.equal(calls,2);assert.equal(values.has('rhytm.refresh_token'),false);
+});
