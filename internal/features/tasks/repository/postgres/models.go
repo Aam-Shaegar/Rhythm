@@ -22,7 +22,7 @@ func scanTask(row core_pool.Row) (*domain.Task, error) {
 	err := row.Scan(
 		&t.ID, &t.UserID, &t.Title, &t.Description, &t.DueAt,
 		&t.IsCompleted, &t.CompletedAt, &t.RecurrenceType, &t.RecurrenceEnd,
-		&t.ParentTaskID, &t.CreatedAt, &t.UpdatedAt,
+		&t.ParentTaskID, &t.CreatedAt, &t.UpdatedAt, &t.Importance, &t.EstimatedMinutes,
 	)
 	if err != nil {
 		return nil, mapScanError(err)

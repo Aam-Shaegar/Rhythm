@@ -7,18 +7,20 @@ import (
 )
 
 type Task struct {
-	ID             uuid.UUID
-	UserID         uuid.UUID
-	Title          string
-	Description    *string
-	DueAt          time.Time
-	IsCompleted    bool
-	CompletedAt    *time.Time
-	RecurrenceType *RecurrenceType
-	RecurrenceEnd  *time.Time
-	ParentTaskID   *uuid.UUID
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	Importance       int
+	EstimatedMinutes int
+	ID               uuid.UUID
+	UserID           uuid.UUID
+	Title            string
+	Description      *string
+	DueAt            time.Time
+	IsCompleted      bool
+	CompletedAt      *time.Time
+	RecurrenceType   *RecurrenceType
+	RecurrenceEnd    *time.Time
+	ParentTaskID     *uuid.UUID
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
 }
 
 // CompletedLate preserves the distinction between finishing a task and meeting its deadline.

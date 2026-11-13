@@ -21,6 +21,13 @@ TOPICS = {
  'personal': ['день рождения подарок друзья', 'позвонить мама семья родители', 'отпуск путешествие билеты поездка', 'хобби гитара прогулка фотография', 'personal birthday family friends travel hobby'],
  'other': ['разобрать заметки идеи список', 'проверить варианты информация вопрос', 'уточнить детали записать напоминание', 'план выбрать вариант продолжить', 'misc check options notes ideas reminder'],
 }
+TOPICS['work'] += ['резюме собеседование вакансия карьера', 'спринт тестирование документация ревью макет']
+TOPICS['study'] += ['лабораторная лабораторную лабу лабы домашка домашку', 'сдать зачет зачёт контрольная реферат университет']
+TOPICS['finance'] += ['выплатить долг ипотека подписка зарплата', 'заплатить электричество пополнить баланс коммуналка']
+TOPICS['home'] += ['убрать помыть пол полы пылесос', 'купить хлеб овощи фрукты яйца', 'покормить кошку собаку питомец корм']
+TOPICS['health'] += ['больница окулист обследование кардиолог', 'спортзал фитнес бассейн йога зарядка']
+TOPICS['personal'] += ['поздравить друга встретиться родственники', 'кино театр концерт музей выходные']
+
 TEMPLATES = [('Нужно {}', 'План: {}. Подготовить всё необходимое.'), ('Завершить: {}', 'Важные детали: {}'), ('На этой неделе — {}', 'Не забыть: {}'), ('Запланировать {}', '{}; проверить результат'), ('{}', 'Заняться: {}'), ('Подготовить {}', 'Следующий шаг: {}')]
 
 def tokens(title, description=''):
@@ -119,7 +126,12 @@ def build():
     probes = [{'title':'Оплатить налог', 'description':'Проверить декларацию и счет банка'}, {'title':'Подготовить экзамен', 'description':'Повторить учебник и лекции'}, {'title':'Починить сервер', 'description':'Исправить баг в проекте'}, {'title':'zxqv 123','description':''}]
     for p in probes:
         p['category'],p['probabilities']=classify(category,p['title'],p['description'])
-    artifact = {'schema': 1, 'version': 'priority-v1-2026-11', 'categories': CATEGORIES, 'feature_names': FEATURES, 'text': category, 'risk_weights': weights, 'probes': probes, 'metrics': metrics}
+    feature_probe = {'title': 'Оплатить налог', 'description': 'Проверить декларацию и счет банка', 'now': '2026-11-13T12:00:00Z', 'created_at': '2026-11-13T10:00:00Z', 'due_at': '2026-11-14T18:00:00Z'}
+    _, probe_probs = classify(category, feature_probe['title'], feature_probe['description'])
+    feature_probe['features'] = features(30, 32, 90, 4, 2, False, len(feature_probe['title'])+len(feature_probe['description']), False, 3, True, probe_probs)
+    feature_probe['risk'] = sigmoid(sum(w*x for w,x in zip(weights, feature_probe['features'])))
+    version = 'priority-v1-' + hashlib.sha256(json.dumps({'text': category, 'risk': weights, 'features': FEATURES}, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:12]
+    artifact = {'schema': 1, 'version': version, 'categories': CATEGORIES, 'feature_names': FEATURES, 'text': category, 'risk_weights': weights, 'probes': probes, 'metrics': metrics, 'feature_probe': feature_probe}
     return artifact, metrics
 
 def main():

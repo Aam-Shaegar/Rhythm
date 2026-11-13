@@ -3,6 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
+	priority_model "github.com/Aam-Shaegar/Rhythm/internal/features/priorities/model"
+	priority_postgres "github.com/Aam-Shaegar/Rhythm/internal/features/priorities/repository/postgres"
+	priority_service "github.com/Aam-Shaegar/Rhythm/internal/features/priorities/service"
+	priority_http "github.com/Aam-Shaegar/Rhythm/internal/features/priorities/transport/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -37,6 +41,7 @@ import (
 	reminders_service "github.com/Aam-Shaegar/Rhythm/internal/features/reminders/service"
 	reminders_transport_http "github.com/Aam-Shaegar/Rhythm/internal/features/reminders/transport/http"
 
+	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 )
@@ -97,6 +102,19 @@ func main() {
 	eventsSvc := events_service.NewEventsService(eventsRepo, remindersSvc)
 	tasksSvc := tasks_service.NewTasksService(tasksRepo, remindersSvc)
 	reportsSvc := reports_service.NewReportsService(tasksRepo, eventsRepo)
+	mlModel, err := priority_model.Load()
+	if err != nil {
+		logger.Fatal("failed to load priority model", zap.Error(err))
+	}
+	priorities := priority_service.New(priority_postgres.New(pool), mlModel)
+	tasksSvc.SetPrioritySync(func(ctx context.Context, uid uuid.UUID) {
+		mlCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+		defer cancel()
+		if _, err := priorities.SyncUser(mlCtx, uid); err != nil {
+			logger.Warn("priority sync deferred to worker", zap.String("user_id", uid.String()), zap.Error(err))
+		}
+	})
+	priorityHandler := priority_http.New(priorities)
 
 	jwtHandler := jwt_transport_http.NewJwtHTTPHandler(jwtSvc, cfg.JwtRefreshTTL, cfg.SecureRefreshCookie)
 	usersHandler := users_transport_http.NewUsersHTTPHandler(usersSvc, cfg)
@@ -142,6 +160,10 @@ func main() {
 		route.Middleware = append(route.Middleware, authMiddleware)
 		protectedRoutes = append(protectedRoutes, route)
 	}
+	for _, route := range priorityHandler.Routes() {
+		route.Middleware = append(route.Middleware, authMiddleware)
+		protectedRoutes = append(protectedRoutes, route)
+	}
 	apiRouter.RegisterRoutes(protectedRoutes...)
 
 	logger.Debug("initializing http server")
@@ -160,6 +182,7 @@ func main() {
 	go jwtSvc.StartCleanup(ctx, time.Hour, logger)
 	go tasksSvc.GenerateRecurringTasks(ctx, time.Now().Add(30*24*time.Hour))
 	go remindersSvc.StartWorker(ctx, 10*time.Second, logger)
+	priorities.StartWorker(ctx, time.Minute, logger)
 
 	if err := httpServer.Run(ctx); err != nil {
 		logger.Error("HTTP server run error", zap.Error(err))

@@ -12,14 +12,14 @@ import (
 
 func (r *TasksRepositoryImpl) Create(ctx context.Context, task *domain.Task) error {
 	const sql = `
-		INSERT INTO tasks (id, user_id, title, description, due_at, is_completed, completed_at, recurrence_type, recurrence_end, parent_task_id, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+		INSERT INTO tasks (id, user_id, title, description, due_at, is_completed, completed_at, recurrence_type, recurrence_end, parent_task_id, created_at, updated_at, importance, estimated_minutes)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 	`
 
 	_, err := r.pool.Exec(ctx, sql,
 		task.ID, task.UserID, task.Title, task.Description, task.DueAt,
 		task.IsCompleted, task.CompletedAt, task.RecurrenceType, task.RecurrenceEnd,
-		task.ParentTaskID, task.CreatedAt, task.UpdatedAt,
+		task.ParentTaskID, task.CreatedAt, task.UpdatedAt, task.Importance, task.EstimatedMinutes,
 	)
 	if err != nil {
 		return mapTaskError(err)
@@ -29,7 +29,7 @@ func (r *TasksRepositoryImpl) Create(ctx context.Context, task *domain.Task) err
 
 func (r *TasksRepositoryImpl) GetByID(ctx context.Context, id uuid.UUID) (*domain.Task, error) {
 	const sql = `
-		SELECT id, user_id, title, description, due_at, is_completed, completed_at, recurrence_type, recurrence_end, parent_task_id, created_at, updated_at
+		SELECT id, user_id, title, description, due_at, is_completed, completed_at, recurrence_type, recurrence_end, parent_task_id, created_at, updated_at, importance, estimated_minutes
 		FROM tasks
 		WHERE id = $1
 	`
@@ -43,7 +43,7 @@ func (r *TasksRepositoryImpl) GetByUserID(ctx context.Context, filter domain.Tas
 	argIdx := 2
 
 	baseSQL := `
-		SELECT id, user_id, title, description, due_at, is_completed, completed_at, recurrence_type, recurrence_end, parent_task_id, created_at, updated_at
+		SELECT id, user_id, title, description, due_at, is_completed, completed_at, recurrence_type, recurrence_end, parent_task_id, created_at, updated_at, importance, estimated_minutes
 		FROM tasks
 		WHERE user_id = $1
 	`
@@ -111,7 +111,7 @@ func (r *TasksRepositoryImpl) GetByUserID(ctx context.Context, filter domain.Tas
 
 func (r *TasksRepositoryImpl) GetByParentID(ctx context.Context, parentID uuid.UUID) ([]*domain.Task, error) {
 	const sql = `
-		SELECT id, user_id, title, description, due_at, is_completed, completed_at, recurrence_type, recurrence_end, parent_task_id, created_at, updated_at
+		SELECT id, user_id, title, description, due_at, is_completed, completed_at, recurrence_type, recurrence_end, parent_task_id, created_at, updated_at, importance, estimated_minutes
 		FROM tasks
 		WHERE parent_task_id = $1
 		ORDER BY due_at ASC
@@ -141,7 +141,7 @@ func (r *TasksRepositoryImpl) GetByParentID(ctx context.Context, parentID uuid.U
 
 func (r *TasksRepositoryImpl) GetRecurringParents(ctx context.Context, userID uuid.UUID, before time.Time) ([]*domain.Task, error) {
 	const sql = `
-		SELECT id, user_id, title, description, due_at, is_completed, completed_at, recurrence_type, recurrence_end, parent_task_id, created_at, updated_at
+		SELECT id, user_id, title, description, due_at, is_completed, completed_at, recurrence_type, recurrence_end, parent_task_id, created_at, updated_at, importance, estimated_minutes
 		FROM tasks
 		WHERE user_id = $1 AND recurrence_type IS NOT NULL AND parent_task_id IS NULL
 		AND (recurrence_end IS NULL OR recurrence_end >= $2)
@@ -174,7 +174,7 @@ func (r *TasksRepositoryImpl) Update(ctx context.Context, task *domain.Task) err
 	const sql = `
 		UPDATE tasks
 		SET title = $2, description = $3, due_at = $4, is_completed = $5, completed_at = $6,
-		    recurrence_type = $7, recurrence_end = $8, updated_at = $9
+		    recurrence_type = $7, recurrence_end = $8, updated_at = $9, importance = $10, estimated_minutes = $11
 		WHERE id = $1
 	`
 
@@ -182,7 +182,7 @@ func (r *TasksRepositoryImpl) Update(ctx context.Context, task *domain.Task) err
 
 	tag, err := r.pool.Exec(ctx, sql,
 		task.ID, task.Title, task.Description, task.DueAt, task.IsCompleted, task.CompletedAt,
-		task.RecurrenceType, task.RecurrenceEnd, task.UpdatedAt,
+		task.RecurrenceType, task.RecurrenceEnd, task.UpdatedAt, task.Importance, task.EstimatedMinutes,
 	)
 	if err != nil {
 		return mapTaskError(err)

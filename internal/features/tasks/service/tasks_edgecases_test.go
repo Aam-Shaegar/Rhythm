@@ -130,3 +130,28 @@ func TestGenerateRecurring_NoRecurrence_Noop(t *testing.T) {
 		t.Fatalf("nil recurrence should be noop, got %v", err)
 	}
 }
+
+func TestCompletionPatchIsIdempotent(t *testing.T) {
+	repo := newMockTasksRepo()
+	svc := NewTasksService(repo, newMockRemindersRepo())
+	uid := uuid.New()
+	response, err := svc.CreateTask(context.Background(), uid, domain.CreateTaskInput{Title: "completion proof", DueAt: time.Now().Add(time.Hour).Format(time.RFC3339)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	finished := time.Date(2026, 11, 1, 10, 0, 0, 0, time.UTC)
+	stored, err := repo.GetByID(context.Background(), response.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stored.IsCompleted = true
+	stored.CompletedAt = &finished
+	completed := true
+	result, err := svc.UpdateTask(context.Background(), uid, response.ID, domain.UpdateTaskInput{IsCompleted: &completed})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.CompletedAt == nil || !result.CompletedAt.Equal(finished) {
+		t.Fatal("duplicate PATCH changed the actual completion time")
+	}
+}

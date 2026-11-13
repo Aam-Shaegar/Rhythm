@@ -79,3 +79,40 @@ func TestFeatureNormalizationAndDamagedModel(t *testing.T) {
 		t.Fatal("invalid model accepted")
 	}
 }
+
+func TestPythonGoFeatureAndRiskParity(t *testing.T) {
+	m, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, _ := assets.ReadFile("baseline.json")
+	var a struct {
+		Probe struct {
+			Title, Description string
+			Now                string
+			CreatedAt          string `json:"created_at"`
+			DueAt              string `json:"due_at"`
+			Features           []float64
+			Risk               float64
+		} `json:"feature_probe"`
+	}
+	if err = json.Unmarshal(data, &a); err != nil {
+		t.Fatal(err)
+	}
+	p := a.Probe
+	now, _ := time.Parse(time.RFC3339, p.Now)
+	created, _ := time.Parse(time.RFC3339, p.CreatedAt)
+	due, _ := time.Parse(time.RFC3339, p.DueAt)
+	x := m.Features(Input{Title: p.Title, Description: p.Description, CreatedAt: created, DueAt: due, Importance: 3, EstimatedMinutes: 90, ActiveLoad: 4, SoonLoad: 2}, now)
+	if len(x) != len(p.Features) {
+		t.Fatal("missing parity fixture")
+	}
+	for i, v := range x {
+		if math.Abs(v-p.Features[i]) > 1e-8 {
+			t.Fatalf("feature %s differs: %g != %g", FeatureNames[i], v, p.Features[i])
+		}
+	}
+	if math.Abs(m.Risk(x, nil, 0)-p.Risk) > 1e-8 {
+		t.Fatal("Python/Go risk mismatch")
+	}
+}

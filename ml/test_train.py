@@ -5,6 +5,10 @@ class BaselineTests(unittest.TestCase):
   a,metrics=build();b,_=build();self.assertEqual(a,b)
   self.assertGreaterEqual(metrics['category_holdout']['accuracy'],.9)
   self.assertLess(metrics['risk_holdout']['brier'],metrics['risk_holdout']['constant_brier'])
+ def test_everyday_wording(self):
+  a,_=build()
+  for text,expected in [('Сдать лабу по математике','study'),('Купить хлеб и яйца','home'),('Оплатить подписку','finance'),('Записаться к стоматологу','health')]:
+   self.assertEqual(classify(a['text'],text)[0],expected,text)
  def test_unknown_and_normalization(self):
   a,_=build();self.assertEqual(classify(a['text'],'zxqv')[0],'other')
   self.assertEqual(tokens('Ёлки!'),tokens('елки'))

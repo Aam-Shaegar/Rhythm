@@ -73,6 +73,12 @@ func Parse(data []byte) (*Model, error) {
 			return nil, fmt.Errorf("incompatible ML features")
 		}
 	}
+	expected := []string{"work", "study", "finance", "home", "health", "personal", "other"}
+	for i, name := range expected {
+		if m.Categories[i] != name {
+			return nil, fmt.Errorf("incompatible category order")
+		}
+	}
 	m.positions = map[string]int{}
 	for i, w := range m.Text.Vocabulary {
 		m.positions[w] = i
