@@ -1,0 +1,17 @@
+{
+  "scope": "synthetic_only_not_real_world_accuracy",
+  "seed": 713,
+  "category_holdout": {
+    "accuracy": 1.0,
+    "samples": 1050,
+    "split": "held-out templates"
+  },
+  "risk_holdout": {
+    "log_loss": 0.530986,
+    "brier": 0.176882,
+    "constant_brier": 0.206458,
+    "roc_auc": 0.733524,
+    "late_rate": 0.708667,
+    "samples": 3000
+  }
+}
