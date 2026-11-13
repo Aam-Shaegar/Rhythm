@@ -119,13 +119,15 @@ def run(state_path):
     final = a.ranking()
     assert final['personal_samples'] == 1
     assert all(item['task_id'] != study['id'] for item in final['items'])
-    state = {'token':a.token,'uid':a.uid,'name':a.name,'profile':profile(a.uid),'samples':final['personal_samples']}
+    state = {'uid':a.uid,'name':a.name,'profile':profile(a.uid),'samples':final['personal_samples']}
     state_path.write_text(json.dumps(state));state_path.chmod(0o600)
     print('PASS: live ML API, category/ranking, validation, tenant isolation, concurrent reads, pre-outcome snapshots, on-time/overdue learning, retraction, deletion and FK ownership')
     print('Test account for local UI: '+a.name)
 
 def resume(state_path):
-    state=json.loads(state_path.read_text());client=Client(state['token']);ranking=client.ranking()
+    state=json.loads(state_path.read_text());client=Client()
+    login=client.req('/auth/login',{'email':state['name'],'password':PASSWORD});client.token=login['access_token']
+    ranking=client.ranking()
     assert ranking['personal_samples']==state['samples']
     assert profile(state['uid'])==state['profile'], 'restart changed weights or retrained unchanged history'
     print('PASS: personal weights, snapshots and model version survive backend restart')
