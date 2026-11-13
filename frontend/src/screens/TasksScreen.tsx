@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiFetch } from '../api/client';
-import { compareTasks, taskStatus } from '../tasks';
-import type { RecurrenceType, Task } from '../api/types';
+import { compareTasks, comparePriorityTasks, taskStatus, CATEGORY_LABELS, PRIORITY_LABELS } from '../tasks';
+import type { RecurrenceType, Task, PriorityResponse } from '../api/types';
+import PriorityOverview from '../components/PriorityOverview';
 import { EmptyBlock, ErrorBlock, ConfirmDialog, FieldError, Modal, Spinner } from '../components/ui';
 
 type Filter = 'all' | 'active' | 'done';
@@ -41,6 +42,12 @@ export default function TasksScreen({ notify }: { notify: (k: 'ok' | 'err', t: s
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
+  const [order, setOrder] = useState<'time'|'priority'>(() => localStorage.getItem('rhytm.tasks.order') === 'priority' ? 'priority' : 'time');
+  const [priorities, setPriorities] = useState<PriorityResponse|null>(null);
+  const [priorityBusy, setPriorityBusy] = useState(false);
+  const [priorityError, setPriorityError] = useState('');
+  const [priorityRetry, setPriorityRetry] = useState(0);
+  useEffect(() => { localStorage.setItem('rhytm.tasks.order',order); }, [order]);
   const [query, setQuery] = useState('');
   const [modal, setModal] = useState<ModalState | null>(null);
   const [toggling, setToggling] = useState<string | null>(null);
@@ -65,13 +72,23 @@ export default function TasksScreen({ notify }: { notify: (k: 'ok' | 'err', t: s
     return () => window.removeEventListener('online', refresh);
   }, [load]);
 
+  useEffect(() => {
+    if (order !== 'priority') return;
+    let cancelled = false;
+    setPriorityBusy(true); setPriorityError('');
+    void apiFetch<PriorityResponse>('/tasks/priorities').then(data => { if (!cancelled) setPriorities(data); }).catch(e => {
+      if (!cancelled) { setPriorityError(e instanceof Error ? e.message : 'Приоритеты временно недоступны'); setPriorities(null); }
+    }).finally(() => { if (!cancelled) setPriorityBusy(false); });
+    return () => { cancelled = true; };
+  }, [order, tasks, Math.floor(now / 60000), priorityRetry]);
+  const priorityMap = useMemo(() => new Map((priorities?.items ?? []).map(item => [item.task_id,item])), [priorities]);
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     return tasks
       .filter((t) => (filter === 'all' ? true : filter === 'done' ? t.is_completed : !t.is_completed))
       .filter((t) => (q ? t.title.toLowerCase().includes(q) || (t.description ?? '').toLowerCase().includes(q) : true))
-      .sort(compareTasks);
-  }, [tasks, filter, query]);
+      .sort(order === 'priority' && priorities ? (a,b) => comparePriorityTasks(a,b,priorityMap) : compareTasks);
+  }, [tasks, filter, query, order, priorities, priorityMap]);
 
   async function toggleComplete(t: Task) {
     if (toggling) return;
@@ -121,7 +138,11 @@ export default function TasksScreen({ notify }: { notify: (k: 'ok' | 'err', t: s
           ))}
         </div>
       </div>
-      <div className="toolbar">
+      <div className="toolbar tasks-toolbar">
+        <div className="pill-toggle task-order" role="group" aria-label="Порядок задач">
+          <button className={order==='time'?'active':''} aria-pressed={order==='time'} onClick={()=>setOrder('time')}>По времени</button>
+          <button className={order==='priority'?'active':''} aria-pressed={order==='priority'} onClick={()=>setOrder('priority')}>По приоритету</button>
+        </div>
         <input
           className="search"
           placeholder="Поиск задач…"
@@ -131,6 +152,11 @@ export default function TasksScreen({ notify }: { notify: (k: 'ok' | 'err', t: s
         />
       </div>
       <div className="screen-body">
+        {order === 'priority' && !loading && <>
+          {priorityBusy && <p className="priority-loading" role="status">Обновляем рекомендации…</p>}
+          {priorityError && <div className="priority-error" role="alert"><p>{priorityError}</p><p>Сейчас задачи расположены по времени.</p><button className="link-btn" onClick={()=>setPriorityRetry(v=>v+1)}>Повторить расчёт</button></div>}
+          {priorities && filter !== 'done' && !query.trim() && <PriorityOverview data={priorities} tasks={tasks} onOpen={task=>setModal({mode:'edit',task})} />}
+        </>}
         {loading ? (
           <Spinner />
         ) : error ? (
@@ -152,9 +178,14 @@ export default function TasksScreen({ notify }: { notify: (k: 'ok' | 'err', t: s
                 <span className="task-title">{t.title}</span>
                 <span className="task-meta">
                   <span>{fmtDue(t.due_at)}</span>
+                  {order === 'priority' && !t.is_completed && priorityMap.get(t.id) && <>
+                    <span className={`priority-badge ${priorityMap.get(t.id)!.level}`} title={priorityMap.get(t.id)!.reasons.join(' · ')}>{PRIORITY_LABELS[priorityMap.get(t.id)!.level]} приоритет</span>
+                    <span>{CATEGORY_LABELS[priorityMap.get(t.id)!.category] ?? 'Прочее'}</span>
+                  </>}
                   {taskStatus(t, now) && <span className="overdue">{taskStatus(t, now)}</span>}
                   {t.recurrence_type && <span> · повтор {REC_LABEL[t.recurrence_type] ?? t.recurrence_type}</span>}
                 </span>
+                {order === 'priority' && !t.is_completed && priorityMap.get(t.id) && <span className="priority-reason">{priorityMap.get(t.id)!.reasons[0]}</span>}
                 {t.description && <span className="task-desc">{t.description}</span>}
               </button>
             </div>
@@ -204,6 +235,8 @@ function TaskModal({
 }) {
   const [title, setTitle] = useState(initial?.title ?? '');
   const [desc, setDesc] = useState(initial?.description ?? '');
+  const [importance, setImportance] = useState(initial?.importance ?? 2);
+  const [minutes, setMinutes] = useState(String(initial?.estimated_minutes ?? 30));
   const [due, setDue] = useState(() =>
     toLocalInputValue(initial ? new Date(initial.due_at) : new Date(Date.now() + 60 * 60 * 1000)),
   );
@@ -222,6 +255,7 @@ function TaskModal({
       setErr('Описание: максимум 2000 символов');
       return;
     }
+    if (!Number.isInteger(Number(minutes)) || Number(minutes) < 5 || Number(minutes) > 480) { setErr('Оценка времени: от 5 до 480 минут'); return; }
     const dueDate = new Date(due);
     if (Number.isNaN(+dueDate)) {
       setErr('Укажите корректный срок');
@@ -244,6 +278,7 @@ function TaskModal({
     try {
       const payload: Record<string, unknown> = {
         title: title.trim(),
+        importance, estimated_minutes: Number(minutes),
         description: desc.trim() ? desc.trim() : null,
         due_at: dueDate.toISOString(),
         recurrence_type: rec || null,
@@ -280,6 +315,10 @@ function TaskModal({
         <span>Описание (необязательно)</span>
         <textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={3} maxLength={2000} />
       </label>
+      <div className="field-row">
+        <label className="field"><span>Важность для вас</span><select value={importance} onChange={e=>setImportance(Number(e.target.value))}><option value="1">Невысокая</option><option value="2">Обычная</option><option value="3">Высокая</option></select></label>
+        <label className="field"><span>Оценка времени, мин.</span><input type="number" min="5" max="480" step="1" value={minutes} onChange={e=>setMinutes(e.target.value)} /><small>Примерно сколько займёт выполнение</small></label>
+      </div>
       <div className="field-row">
         <label className="field">
           <span>Повтор</span>

@@ -23,6 +23,8 @@ export interface LoginResponse {
 export type RecurrenceType = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
 export interface Task {
+  importance: number;
+  estimated_minutes: number;
   id: string;
   title: string;
   description?: string | null;
@@ -72,3 +74,32 @@ export interface ApiError {
 }
 
 export type ThemeName = 'forest' | 'coffee' | 'lavender' | 'custom';
+
+export interface TaskPriority {
+  task_id: string;
+  category: string;
+  category_confidence: number;
+  risk: number;
+  score: number;
+  level: 'high' | 'medium' | 'low';
+  reasons: string[];
+  model_version: string;
+}
+export interface PriorityCategoryStat {
+  category: string;
+  known_outcomes: number;
+  late_outcomes: number;
+  completed_late: number;
+  open_late: number;
+  late_rate: number;
+}
+export interface PriorityResponse {
+  items: TaskPriority[];
+  recommendations: string[];
+  categories: PriorityCategoryStat[];
+  model_version: string;
+  model_source: string;
+  personal_samples: number;
+  personal_state: 'baseline' | 'learning' | 'personalized';
+  trained_at: string;
+}
