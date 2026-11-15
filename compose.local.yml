@@ -1,0 +1,71 @@
+# Self-contained demo stack; no external networks or prebuilt binaries required.
+name: rhythm-local
+services:
+  postgres:
+    image: postgres:16-alpine
+    env_file: .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_NAME}
+    volumes:
+      - local_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 2s
+      timeout: 5s
+      retries: 30
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+  migrate:
+    image: migrate/migrate:v4.19.1
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./migrations:/migrations:ro
+    command: ['-path', /migrations, '-database', 'postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_NAME}?sslmode=disable', up]
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    env_file: .env
+    environment:
+      POSTGRES_HOST: postgres
+      REDIS_ADDR: redis:6379
+      HTTP_ADDR: ':8080'
+      SECURE_REFRESH_COOKIE: 'false'
+      CORS_ALLOWED_ORIGINS: http://localhost:8088
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: [CMD-SHELL, 'wget -q -O /dev/null http://localhost:8080/healthz']
+      interval: 3s
+      timeout: 5s
+      retries: 30
+      start_period: 15s
+  frontend:
+    build: ./frontend
+    environment:
+      API_PUBLIC_URL: ''
+  gateway:
+    image: caddy:2-alpine
+    ports:
+      - '127.0.0.1:8088:80'
+    volumes:
+      - ./deploy/Caddyfile.local:/etc/caddy/Caddyfile:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+volumes:
+  local_postgres:

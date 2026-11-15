@@ -1,206 +1,102 @@
-# Деплой «Ритма» на VDS (prod runbook)
+# Production-деплой
 
-Архитектура: `caddy` (:80/:443) → `frontend` (:80, статика) и `backend:8080`
-(`POST /api/*`). Фронт ходит в API **того же origin** (`/api/v1`), поэтому
-в проде CORS не задействован.
+Для первого знакомства используйте [локальный стек](../README.md#запуск-за-несколько-команд). Этот документ описывает production-файл `docker-compose.yml` и отдельный процесс выпуска через git.
 
-## 0. TLS: что делать, если сертификата нет
+## Устройство
 
-Покупать ничего не нужно. Два рабочих варианта:
+Caddy принимает HTTP/HTTPS и направляет `/api/*` и `/healthz` в Go-backend, остальные запросы — в nginx со статическим frontend. PostgreSQL хранит данные, Redis используется приложением, `migrate` применяет схему до запуска backend. `backup` создаёт ежедневные архивы PostgreSQL.
 
-**A. Свой домен (рекомендуется).** Направьте A-запись домена на IP VDS,
-откройте порты 80/443 и укажите в `.env`:
+Production Compose по умолчанию использует `Dockerfile.backend.runtime`: Linux-бинарник собирается локально и доставляется через git. Альтернатива — `BACKEND_DOCKERFILE=Dockerfile.backend` в серверном `.env`, тогда backend собирается из исходников на сервере.
 
-```env
+## Первый запуск
+
+```bash
+git clone https://github.com/Aam-Shaegar/Rhythm.git
+cd Rhythm
+python3 scripts/init_env.py
+```
+
+Настройте **на сервере** `.env`:
+
+```dotenv
 SITE_ADDR=rhythm.example.com
 CORS_ALLOWED_ORIGINS=https://rhythm.example.com
 SECURE_REFRESH_COOKIE=true
+LOGGER_LEVEL=INFO
+# Необязательно: домен второго приложения, обслуживаемого общим Caddy.
+GOCHAT_ADDR=
 ```
 
-Caddy сам выпустит бесплатный сертификат Let's Encrypt и будет его
-продлевать. Проверка: замок в браузере,
-`curl -s https://rhythm.example.com/healthz` → `{"status":"ok"}`.
+JWT-секреты и пароль PostgreSQL сгенерированы `init_env.py`. Для существующей БД сохраните её действующие реквизиты. Изменение пароля в `.env` само по себе не меняет пароль уже созданного PostgreSQL-пользователя.
 
-**B. Домена нет, только IP.** Let's Encrypt не выдаёт сертификаты на
-голый IP. Варианты:
-- завести домен (обычно дёшево/бесплатно на первый год) → вариант A;
-- Cloudflare Tunnel: `cloudflared tunnel --url http://localhost:80` —
-  получаете публичный `https://…` без открытых портов и без сертификатов;
-- пока нет ни того ни другого — `SITE_ADDR=:80`, обычный HTTP **только**
-  для закрытого контура (тесты, VPN). Открытый прод без TLS — нельзя:
-  токены и cookie будут идти открытым текстом (ТЗ S.4).
+Для HTTPS домен должен указывать на сервер, входящие порты 80/443 — быть открыты. Caddy управляет сертификатом. Web Push требует HTTPS и настроенных `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`; пару можно получить через `make vapid`.
 
-## 1. Подготовка сервера
+Production-конфигурация поддерживает общий прокси со вторым приложением GoChat и использует внешнюю сеть `edge`. Создайте её один раз, если ещё нет:
 
 ```bash
-git clone <repo> && cd Rhytm
-cp .env.example .env
-make secrets          # сгенерировать JWT-секреты в .env
-# вручную в .env:
-#   POSTGRES_PASSWORD=<длинный случайный>
-#   SITE_ADDR=<домен или :80>
-#   CORS_ALLOWED_ORIGINS=https://<домен>
-#   SECURE_REFRESH_COOKIE=true   # только если есть HTTPS
-#   LOGGER_LEVEL=INFO
-```
-
-## 2. Запуск
-
-```bash
+docker network inspect edge >/dev/null 2>&1 || docker network create edge
+sha256sum -c build/rhytm.sha256
+docker compose config -q
 docker compose up -d --build
-docker compose ps   # все healthy, backup сделал первый архив
+docker compose ps
+curl -fsS https://rhythm.example.com/healthz
 ```
 
-Проверки (Caddy наружу отдаёт `/api/*`, `/healthz` и фронт):
+`/healthz` проверяет доступность процесса. Дополнительно проверьте вход, создание задачи и отчёт. Не публикуйте сгенерированный вывод конфигурации с секретами; для валидации используйте `config -q`.
+
+## Подготовка выпуска
+
+На машине разработки после изменений backend:
 
 ```bash
-curl -s http://localhost/healthz      # {"status":"ok"}
-curl -s http://localhost/config.js     # window.__ENV__ = { API_URL: '' }
-curl -s http://localhost/api/v1/users/me -H 'Authorization: Bearer x'  # 401
-docker compose exec backup ls -la /backups   # rhytm-*.sql.gz
-```
-
-Фронт: открыть `http(s)://<домен>/`, зарегистрироваться, создать
-задачу/событие, проверить отчёт и напоминания.
-
-## 3. Бэкапы (ТЗ R.5)
-
-Сервис `backup` делает `pg_dump` раз в сутки в volume `backup_data`
-(`BACKUP_RETENTION_DAYS`, по умолчанию 7). Проверка и восстановление:
-
-```bash
-docker compose exec backup ls -la /backups
-docker cp $(docker compose ps -q backup):/backups/rhytm-<дата>.sql.gz ./
-make backup-restore file=rhytm-<дата>.sql.gz
-```
-
-## 4. Обновление
-
-```bash
-git pull
-docker compose up -d --build   # миграции применятся сами (сервис migrate)
-docker compose exec backend wget -q -O - http://localhost:8080/healthz
-```
-
-### Если VDS слабый и сборка идёт минутами
-
-Первая сборка Go (~2 мин) — это нормально и разово: компилируются все
-зависимости. Дальше работают BuildKit-кэши в `Dockerfile.backend`, и
-пересборки занимают секунды. Если сервер совсем не тянет (мало RAM/CPU),
-есть запасной путь — собрать дома и залить готовый бинарь:
-
-```bash
-# дома:
+npm ci --prefix frontend
+bash scripts/check_ml.sh
 make backend-build
-make backend-sync VDS=deploy@45.8.248.97:~/Rhythm
-# на VDS в .env одна строка:
-#   BACKEND_DOCKERFILE=Dockerfile.backend.runtime
-# дальше обычный docker compose up -d --build (копирование бинаря — секунды)
+git add build/rhytm build/rhytm.sha256
+# Закоммитьте исходники, миграции, бинарник и checksum вместе, затем git push.
 ```
 
-По умолчанию этот путь не нужен — держите многостадийную сборку.
+`build/rhytm` — статический `linux/amd64` бинарник. Для ARM-сервера потребуется отдельная сборка и соответствующий образ. Frontend собирается на сервере из `package-lock.json` командой `npm ci`.
 
-## 5. Что осознанно осталось за скобками
+## Обновление сервера
 
-- R.2 (1000 concurrent): нагрузочно не тестировалось — перед ростом
-  прогнать k6 vegeta-сценарий на логин/создание задачи/отчёт.
-- Метрики/алерты: следующий шаг — `/metrics` + внешний мониторинг
-  аптайма `/healthz`.
-- Логи: ротация docker-логов настроена (`max-size 10m`), файловые логи
-  backend (`LOGGER_FOLDER`) эфемерны — при разборе инцидентов снимать
-  через `docker compose logs`.
+Сначала сохраните текущий commit, серверный `.env`, предыдущий бинарник/образы и резервную копию БД. Конфигурация не доставляется через git.
 
-## 6. Два приложения на одном VDS (Ритм + GoChat)
-
-Порт 80/443 слушает только общий Caddy из этого проекта. GoChat свой
-порт 80 не публикует — его nginx виден Caddy по имени `gochat-nginx`
-через общую docker-сеть `edge`. Маршрутизация — по имени сайта.
-
-Предусловия на VDS: оба имени резолвятся в IP сервера
-(`nslookup <имя>` → IP VDS), открыты входящие 80/443.
+**Первый переход со старой версии, где `.env` был tracked:** `git pull` может удалить файл с диска. До обновления сохраните оба `.env` вне каталога checkout с правами 600; после pull восстановите серверные значения. Не заменяйте их шаблоном. В новых версиях `.env` игнорируется.
 
 ```bash
-docker network create edge   # один раз; ignore, если уже есть
+# Из каталога проекта; архив хранить вне checkout.
+docker compose exec -T postgres sh -c \
+  'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB"' | gzip > ../rhythm-before-update.sql.gz
+gzip -t ../rhythm-before-update.sql.gz
 
-# GoChat: отдать :80 (конфиг уже готов в репозитории GoChat)
-cd ~/projects/golang/GoChat
-docker compose up -d --build
-
-# Rhytm: два сайта (конфиг уже готов: Caddyfile + GOCHAT_ADDR)
-cd ~/projects/golang/Rhytm
-docker compose up -d --build
+git pull --ff-only
+sha256sum -c build/rhytm.sha256
+docker compose config -q
+docker compose build backend frontend
+docker compose run --rm -T migrate
+docker compose up -d
+docker compose ps
+docker compose logs --since 5m --tail 80 backend
+curl -fsS https://rhythm.example.com/healthz
 ```
 
-Нужные значения в `.env` (Rhytm, уезжают на VDS через git):
+Не меняйте ветку сервера вслепую: сначала проверьте её историю и рабочее дерево. Не включайте `down -v` в обновление — эта команда удаляет volumes с данными. Миграции запускаются явно, чтобы ошибка схемы остановила обновление до перезапуска приложения.
 
-```env
-SITE_ADDR=rhythm-tesler.duckdns.org
-GOCHAT_ADDR=gochat-tesler.duckdns.org
-CORS_ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000,https://rhythm-tesler.duckdns.org,https://gochat-tesler.duckdns.org
-SECURE_REFRESH_COOKIE=true
-```
+## Резервные копии и восстановление
 
-В GoChat `.env` **на сервере** (файл не в git — править прямо на VDS):
-
-```env
-CORS_ALLOWED_ORIGINS=https://gochat-tesler.duckdns.org
-SECURE_REFRESH_COOKIE=true
-```
-
-Проверки:
+Сервис `backup` сохраняет архивы в volume `backup_data`; срок хранения задаётся `BACKUP_RETENTION_DAYS` (по умолчанию 7). Переносите копии за пределы сервера и периодически проверяйте восстановление в отдельной БД.
 
 ```bash
-curl -s https://rhythm-tesler.duckdns.org/healthz   # {"status":"ok"}
-curl -s -o /dev/null -w '%{http_code}\n' https://gochat-tesler.duckdns.org/  # 200
-# Браузер: оба замка зелёные. GoChat: вход + сообщение (проверка wss).
-# Ритм: вход, задача, событие, отчёт.
+docker compose exec backup ls -lh /backups
+# Получить конкретный архив:
+docker cp "$(docker compose ps -q backup)":/backups/<archive.sql.gz> ./
 ```
 
-Откат: если что-то пошло не так — в GoChat compose вернуть
-`ports: ["80:80"]` у nginx и `docker compose up -d` (GoChat снова один
-на :80), а Caddy Ритма остановить. Данные при этом не трогаем:
-у каждого проекта свои volumes.
+`make backup-restore file=<archive.sql.gz>` загружает архив в настроенную БД. Это изменяет данные: выполняйте только при осознанном восстановлении, с остановленной записью и отдельной актуальной копией.
 
-## 7. Web Push на телефон
+## Откат и ограничения
 
-Как это работает: телефон подписывается в браузере (Настройки →
-«Push-уведомления на телефон»), сервер хранит подписку и шлёт пуш,
-когда срабатывает напоминание о задаче/событии.
+Для отката приложения используйте сохранённые commit/образы, совместимые с текущей схемой. Не запускайте миграции down автоматически: они могут удалять данные. Миграция ML №11 аддитивна; старую версию приложения можно вернуть, оставив добавленные таблицы. Её down удаляет ML-профили и снимки.
 
-Разовый выпуск VAPID-ключей (на своём компе, приватный ключ — только
-на сервер, никогда в git):
-
-```bash
-make vapid   # или: npx -y web-push generate-vapid-keys
-```
-
-В `.env` **на сервере** дописать:
-
-```env
-VAPID_PUBLIC_KEY=<public из вывода>
-VAPID_PRIVATE_KEY=<private из вывода>
-VAPID_SUBJECT=mailto:admin@rhythm.local
-```
-
-Без ключей сервер стартует как обычно, планирование работает,
-доставка пушей пропущена (в логе предупреждение).
-
-Деплой:
-
-```bash
-git pull
-docker compose up -d --build   # миграции 0008/0009 применятся сами
-```
-
-Приёмка на телефоне (строго по HTTPS):
-
-1. Открыть сайт, войти, Настройки → включить «Push-уведомления».
-2. Создать задачу со сроком через 61+ минуту (напоминание «за час»
-   сработает в течение минуты-двух, воркер тикает раз в минуту).
-3. Свернуть браузер / заблокировать телефон — пуш придёт системным
-   уведомлением. Тап по нему открывает приложение.
-
-Важно про iPhone: Apple отдаёт веб-пуши только установленным PWA
-(iOS 16.4+). В Safari: Поделиться → «На экран „Домой“», открывать
-с иконки — тогда переключатель в настройках включится. На Android
-(Chrome) работает и без установки.
+Нагрузочные пределы production не измерены. Мониторинг, метрики, алерты и измерение качества ML на реальной временной выборке остаются отдельными задачами. Логи ограничены Docker-ротацией; файловые логи backend внутри контейнера не являются долговечным хранилищем.

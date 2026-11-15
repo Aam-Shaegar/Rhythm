@@ -1,0 +1,10 @@
+* text=auto
+*.go text eol=lf
+*.sh text eol=lf
+
+# Generated release/model artifacts stay reviewable through their source and checksums.
+build/rhytm -text linguist-generated=true
+build/rhytm.sha256 linguist-generated=true
+internal/features/priorities/model/baseline.json linguist-generated=true
+ml/metrics.json linguist-generated=true
+docs/archive/** linguist-documentation=true

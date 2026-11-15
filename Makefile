@@ -1,7 +1,19 @@
-include .env
+-include .env
 export
 
-.PHONY: infra infra-down migrate-up migrate-down migrate-action migrate-create run backend-build backend-run build-all test secrets vapid backup-restore
+.PHONY: init local-up local-down test-all infra infra-down migrate-up migrate-down migrate-action migrate-create run backend-build backend-run build-all test secrets vapid backup-restore
+
+init:
+	@python3 scripts/init_env.py
+
+local-up:
+	@docker compose -f compose.local.yml up -d --build --wait --wait-timeout 180
+
+local-down:
+	@docker compose -f compose.local.yml down
+
+test-all:
+	@bash scripts/check_ml.sh
 
 infra:
 	@docker compose up -d postgres redis
@@ -80,7 +92,7 @@ docker-build:
 	@docker compose build backend
 
 # Запасной путь для слабого VDS: собрать бинарь дома и залить по scp.
-# Использование: make backend-build && make backend-sync VDS=deploy@45.8.248.97:~/Rhythm
+# Использование: make backend-build && make backend-sync VDS=user@host:~/Rhythm
 # На VDS при этом compose должен использовать Dockerfile.backend.runtime.
 backend-sync:
 	@if [ -z "$(VDS)" ]; then \
@@ -100,11 +112,15 @@ docker-logs:
 
 lint:
 	@go vet ./...
-	@gofmt -l -d ./internal ./cmd
+	@test -z "$$(gofmt -l ./internal ./cmd)" || { gofmt -l ./internal ./cmd; exit 1; }
 
 .PHONY: help
 help:
 	@echo "Available targets:"
+	@echo "  init            - Create local env files without overwriting existing values"
+	@echo "  local-up        - Build and start the isolated demo at localhost:8088"
+	@echo "  local-down      - Stop demo (keep database volume)"
+	@echo "  test-all        - Run complete verification (requires Docker and npm ci)"
 	@echo "  infra           - Start postgres and redis"
 	@echo "  infra-down      - Stop postgres and redis"
 	@echo "  migrate-up      - Run migrations up"

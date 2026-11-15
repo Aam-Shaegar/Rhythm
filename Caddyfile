@@ -1,7 +1,7 @@
 # Edge proxy: один домен/порт для фронта и API.
 # SITE_ADDR берётся из .env:
 #   - локально/без домена:  :80            (обычный HTTP, без TLS)
-#   - прод с доменом:       rhythm-tesler.duckdns.org
+#   - прод с доменом:       rhythm.example.com
 #     Caddy сам выпустит бесплатный сертификат Let's Encrypt
 #     (нужны A-запись на IP VDS и открытые 80/443) и включит HTTPS.
 {
