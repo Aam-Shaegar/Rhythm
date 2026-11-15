@@ -5,3 +5,9 @@ server
 # собранный фронт (собирается в Docker из исходников) и файловые логи бэка
 frontend/dist/
 logs/
+
+# Local configuration and secrets; keep example templates tracked.
+.env
+.env.*
+!.env.example
+!.env.*.example
